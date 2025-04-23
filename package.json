@@ -14,6 +14,20 @@
     "compile": "tsc --noEmit",
     "postinstall": "wxt prepare"
   },
+  "keywords": [
+    "mcp",
+    "modelcontextprotocol",
+    "server",
+    "draw.io",
+    "drawio",
+    "diagrams.net",
+    "diagramsnet",
+    "diagram",
+    "claude"
+  ],
+  "author": "Ladislav Gazo",
+  "license": "MIT",
+  "packageManager": "pnpm@10.8.1",
   "dependencies": {
     "react": "19.1.0",
     "react-dom": "19.1.0"
