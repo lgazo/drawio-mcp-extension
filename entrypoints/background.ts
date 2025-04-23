@@ -1,0 +1,129 @@
+export default defineBackground(() => {
+  console.log("Hello background!", { id: browser.runtime.id });
+
+  let socket: WebSocket | null = null;
+  let reconnectAttempts = 0;
+  const maxReconnectAttempts = 5;
+  const reconnectDelay = 3000; // 3 seconds
+
+  // Set initial icon state
+  setExtensionIcon("disconnected");
+
+  // Function to set extension icon based on connection state
+  function setExtensionIcon(
+    state: "connected" | "connecting" | "disconnected",
+  ) {
+    const iconSizes = [16, 32, 48, 128];
+    const iconPaths = iconSizes.reduce(
+      (acc, size) => ({
+        ...acc,
+        [size]: `/icon/logo_${state}_${size}.png`,
+      }),
+      {},
+    );
+
+    browser.action.setIcon({ path: iconPaths }).catch(console.error);
+  }
+
+  // Function to establish WebSocket connection
+  function connect() {
+    setExtensionIcon("connecting");
+    socket = new WebSocket("ws://localhost:3000");
+
+    socket.addEventListener("open", (event) => {
+      console.debug("[background] WebSocket connection established", event);
+      reconnectAttempts = 0; // Reset reconnect counter on successful connection
+      setExtensionIcon("connected");
+      // Notify content scripts that connection is ready
+      broadcastToContentScripts({ type: "WS_STATUS", connected: true });
+    });
+
+    socket.addEventListener("message", (event) => {
+      console.debug("[background] Message from server:", event.data);
+      const json = JSON.parse(event.data);
+      // Forward messages to all content scripts
+      broadcastToContentScripts({
+        type: "WS_MESSAGE",
+        data: json,
+      });
+    });
+
+    socket.addEventListener("close", (event) => {
+      console.debug("[background] WebSocket connection closed", event);
+      setExtensionIcon("disconnected");
+      broadcastToContentScripts({ type: "WS_STATUS", connected: false });
+      attemptReconnect();
+    });
+
+    socket.addEventListener("error", (event) => {
+      console.error("[background] WebSocket error:", event);
+      setExtensionIcon("disconnected");
+    });
+  }
+
+  // Reconnection logic with exponential backoff
+  function attemptReconnect() {
+    if (reconnectAttempts < maxReconnectAttempts) {
+      reconnectAttempts++;
+      const delay = reconnectDelay * Math.pow(1.5, reconnectAttempts);
+      setExtensionIcon("connecting");
+      console.log(
+        `Attempting to reconnect in ${delay / 1000} seconds... (attempt ${reconnectAttempts})`,
+      );
+
+      setTimeout(() => {
+        connect();
+      }, delay);
+    } else {
+      console.error("Max reconnection attempts reached. Giving up.");
+      setExtensionIcon("disconnected");
+    }
+  }
+
+  // Function to broadcast messages to all content scripts
+  async function broadcastToContentScripts(message: any) {
+    const tabs = await browser.tabs.query({});
+    console.debug(`[background] broadcast to tabs`, tabs);
+    for (const tab of tabs) {
+      if (tab.id) {
+        browser.tabs.sendMessage(tab.id, message).catch((err) => {
+          // Ignore errors (tabs without content script)
+        });
+      }
+    }
+  }
+
+  // Handle messages from content scripts
+  browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (
+      message.type === "SEND_WS_MESSAGE" &&
+      socket?.readyState === WebSocket.OPEN
+    ) {
+      const ser = JSON.stringify(message.data);
+      console.debug(`[background] received from content`, {
+        received: message.data,
+        sending: ser,
+      });
+      socket.send(ser);
+    }
+    return true; // Keep the message channel open for async response
+  });
+
+  // Initial connection
+  connect();
+
+  // Optional: Keepalive ping
+  const keepAliveInterval = setInterval(() => {
+    if (socket?.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({ type: "PING" }));
+    }
+  }, 30000); // Every 30 seconds
+
+  // Cleanup on extension unload
+  browser.runtime.onSuspend.addListener(() => {
+    clearInterval(keepAliveInterval);
+    if (socket) {
+      socket.close();
+    }
+  });
+});
