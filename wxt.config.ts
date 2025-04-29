@@ -4,10 +4,27 @@ import { defineConfig } from "wxt";
 export default defineConfig({
   modules: ["@wxt-dev/module-react"],
   manifest: {
+    permissions: [
+      "activeTab",
+      "scripting",
+      "webNavigation"
+    ],
+    host_permissions: [
+      "https://app.diagrams.net/*",
+      "http://app.diagrams.net/*",
+      "https://*.diagrams.net/*",
+      "http://*.diagrams.net/*",
+      "ws://localhost:3000/"
+    ],
     web_accessible_resources: [
       {
         resources: ["main_world.js"],
-        matches: ["*://*/*"],
+        matches: [
+          "https://app.diagrams.net/*",
+          "http://app.diagrams.net/*",
+          "https://*.diagrams.net/*",
+          "http://*.diagrams.net/*"
+        ],
       },
     ],
   },
