@@ -7,7 +7,8 @@ export default defineConfig({
     permissions: [
       "activeTab",
       "scripting",
-      "webNavigation"
+      "webNavigation",
+      "tabs"
     ],
     host_permissions: [
       "https://app.diagrams.net/*",

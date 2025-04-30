@@ -204,13 +204,23 @@ export default defineBackground(() => {
         return;
       }
       
-      console.log(`[MCP-EXT] Broadcasting message to ${drawioTabs.length} Draw.io tabs:`, message);
+      console.log(`[MCP-EXT] Broadcasting message to ${drawioTabs.length} Draw.io tabs:`, {
+        type: message.type,
+        data: message.data,
+        hasEvent: message.data && message.data.__event ? true : false,
+        eventName: message.data && message.data.__event ? message.data.__event : "No event"
+      });
       
-      // Only send messages to Draw.io tabs
+      // First test communication with a simple message
       for (const tabId of drawioTabs) {
         try {
-          await browser.tabs.sendMessage(tabId, message);
-          console.log(`[MCP-EXT] ✅ Successfully sent message to tab ${tabId}`);
+          // Send a test message first to check communication
+          const testResponse = await browser.tabs.sendMessage(tabId, { type: "TEST_MESSAGE" });
+          console.log(`[MCP-EXT] ✅ Test message to tab ${tabId} successful, response:`, testResponse);
+          
+          // If test successful, send the actual message
+          const response = await browser.tabs.sendMessage(tabId, message);
+          console.log(`[MCP-EXT] ✅ Successfully sent message to tab ${tabId}, response:`, response);
         } catch (err) {
           console.log(`[MCP-EXT] ❌ Failed to send message to tab ${tabId}:`, err);
           
@@ -220,11 +230,21 @@ export default defineBackground(() => {
             if (!tab) {
               console.log(`[MCP-EXT] Tab ${tabId} does not exist, removing from list`);
               drawioTabs = drawioTabs.filter(id => id !== tabId);
+            } else {
+              console.log(`[MCP-EXT] Tab ${tabId} exists but message failed, might be content script issue`);
+              
+              // Try reinitializing the tab if needed
+              try {
+                await browser.tabs.executeScript(tabId, { code: 'console.log("[MCP-EXT] Testing script injection");' });
+                console.log(`[MCP-EXT] Successfully injected test script into tab ${tabId}`);
+              } catch (scriptErr) {
+                console.log(`[MCP-EXT] Failed to inject script into tab ${tabId}:`, scriptErr);
+              }
             }
           } catch (e) {
             console.log(`[MCP-EXT] Tab ${tabId} does not exist, removing from list`);
             drawioTabs = drawioTabs.filter(id => id !== tabId);
-      }
+          }
         }
       }
     } catch (err) {

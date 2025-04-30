@@ -58,8 +58,11 @@ export default defineContentScript({
     }, 2000);
 
     // Listen for messages from background
-    browser.runtime.onMessage.addListener((message) => {
+    browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
       console.log("[MCP-EXT-CONTENT] Received message from background:", message);
+      
+      // 立即发送响应确认收到消息
+      sendResponse({ received: true });
       
       if (message.type === "WS_MESSAGE") {
         console.log(
@@ -86,14 +89,6 @@ export default defineContentScript({
               
               // Create and dispatch BUS_REQUEST event to the page
               console.log(`[MCP-EXT-CONTENT] Preparing to dispatch event ${bus_request_stream} to page, event content:`, eventData);
-              
-              // Add debug code before dispatching
-              window.addEventListener("BUS_REQUEST_DEBUG", (e) => {
-                console.log("[MCP-EXT-CONTENT] Debug event received:", e);
-              }, { once: true });
-              
-              // Dispatch a test event to check if the event system is working
-              window.dispatchEvent(new CustomEvent("BUS_REQUEST_DEBUG", { detail: { test: true } }));
               
               // Create and dispatch the actual event
               const event = new CustomEvent(bus_request_stream, { detail: eventData });
@@ -139,7 +134,11 @@ export default defineContentScript({
           "[MCP-EXT-CONTENT] WebSocket status update:",
           message.connected ? "Connected" : "Disconnected",
         );
+      } else if (message.type === "TEST_MESSAGE") {
+        console.log("[MCP-EXT-CONTENT] Received test message. Communication working properly.");
       }
+      
+      return true; // Keep the message channel open for async response
     });
 
     window.addEventListener(bus_reply_stream, (message: any) => {
