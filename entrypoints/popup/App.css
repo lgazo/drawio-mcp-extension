@@ -40,3 +40,104 @@
 .read-the-docs {
   color: #888;
 }
+
+.drawio-mcp-container {
+  padding: 16px;
+  max-width: 320px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
+
+h1 {
+  font-size: 1.5rem;
+  margin-bottom: 16px;
+  color: #333;
+  text-align: center;
+}
+
+.status-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  background-color: #f5f5f5;
+  border-radius: 12px;
+}
+
+.status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+.status-dot.connected {
+  background-color: #4caf50;
+  box-shadow: 0 0 8px rgba(76, 175, 80, 0.6);
+}
+
+.status-dot.connecting {
+  background-color: #ff9800;
+  box-shadow: 0 0 8px rgba(255, 152, 0, 0.6);
+  animation: blink 1s infinite;
+}
+
+.status-dot.disconnected {
+  background-color: #f44336;
+  box-shadow: 0 0 8px rgba(244, 67, 54, 0.6);
+}
+
+@keyframes blink {
+  0% { opacity: 0.3; }
+  50% { opacity: 1; }
+  100% { opacity: 0.3; }
+}
+
+.connection-info {
+  margin-bottom: 16px;
+  padding: 8px;
+  background-color: #f0f8ff;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.features-list {
+  margin-bottom: 16px;
+}
+
+.features-list h3 {
+  font-size: 1rem;
+  margin-bottom: 8px;
+}
+
+.features-list ul {
+  list-style-type: disc;
+  padding-left: 24px;
+  font-size: 0.9rem;
+}
+
+.features-list li {
+  margin-bottom: 4px;
+}
+
+.instructions {
+  font-size: 0.9rem;
+  padding: 8px;
+  background-color: #fff9c4;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.instructions a {
+  color: #1976d2;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.instructions a:hover {
+  text-decoration: underline;
+}
