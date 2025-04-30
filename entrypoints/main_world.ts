@@ -12,37 +12,54 @@ import { bus } from "../bus";
 import { reply_name } from "@/events";
 import { bus_request_stream, bus_reply_stream } from "@/types";
 
+// Define extended interfaces to fix type errors
+interface CustomEvent extends Event {
+  detail: any;
+}
+
+interface DrawIO {
+  loadPlugin: (callback: (ui: any) => void) => void;
+}
+
+interface WindowWithDraw extends Window {
+  Draw?: DrawIO;
+  ui?: any;
+  editor?: any;
+  graph?: any;
+}
+
 export default defineUnlistedScript(() => {
-  console.log("[MCP-EXT-MAIN] Draw.io MCP脚本已加载");
+  console.log("[MCP-EXT-MAIN] Draw.io MCP script loaded");
   
-  // 全局诊断：添加监听器来检查总线系统是否正常工作
+  // Global diagnostics: Add listeners to check if the bus system is working properly
   window.addEventListener(bus_request_stream, (event) => {
-    console.log(`[MCP-EXT-MAIN] 🌍 全局收到 ${bus_request_stream} 事件:`, event.detail);
+    console.log(`[MCP-EXT-MAIN] 🌍 Global received ${bus_request_stream} event:`, (event as CustomEvent).detail);
   });
   
-  // 尝试发送一个测试事件，确认事件系统工作
+  // Try to send a test event to confirm the event system is working
   setTimeout(() => {
-    console.log(`[MCP-EXT-MAIN] 🧪 触发测试事件到主世界`);
+    console.log(`[MCP-EXT-MAIN] 🧪 Triggering test event to main world`);
     try {
-      window.dispatchEvent(new CustomEvent("MAIN_WORLD_TEST", { detail: "测试" }));
-      console.log(`[MCP-EXT-MAIN] 🧪 测试事件已触发`);
+      window.dispatchEvent(new CustomEvent("MAIN_WORLD_TEST", { detail: "test" }));
+      console.log(`[MCP-EXT-MAIN] 🧪 Test event triggered`);
     } catch (e) {
-      console.error(`[MCP-EXT-MAIN] 🧪 测试事件触发失败:`, e);
+      console.error(`[MCP-EXT-MAIN] 🧪 Failed to trigger test event:`, e);
     }
   }, 2000);
   
-  // 手动测试事件监听
+  // Manual test event listener
   window.addEventListener("MAIN_WORLD_TEST", (e) => {
-    console.log(`[MCP-EXT-MAIN] 🧪 测试事件收到:`, e);
+    console.log(`[MCP-EXT-MAIN] 🧪 Test event received:`, e);
   }, { once: true });
   
-  // 定期检查Draw.io是否加载完成
+  // Periodically check if Draw.io is fully loaded
   const checkInterval = setInterval(() => {
-    if (window.Draw) {
-      console.log("[MCP-EXT-MAIN] Draw.io已检测到，开始加载插件");
+    const win = window as WindowWithDraw;
+    if (win.Draw) {
+      console.log("[MCP-EXT-MAIN] Draw.io detected, starting plugin loading");
       clearInterval(checkInterval);
-      window.Draw.loadPlugin((ui: unknown) => {
-        console.log("[MCP-EXT-MAIN] Draw.io插件已加载", ui);
+      win.Draw.loadPlugin((ui: any) => {
+        console.log("[MCP-EXT-MAIN] Draw.io plugin loaded", ui);
         const { editor } = ui;
         const { graph } = editor;
 
@@ -52,16 +69,16 @@ export default defineUnlistedScript(() => {
         // window.graph = graph;
 
         const TOOL_get_selected_cell = "get-selected-cell";
-        console.log(`[MCP-EXT-MAIN] 注册工具: ${TOOL_get_selected_cell}`);
+        console.log(`[MCP-EXT-MAIN] Registering tool: ${TOOL_get_selected_cell}`);
         const unregisterGetSelectedCell = bus.on_request_from_server(TOOL_get_selected_cell, (request: any) => {
-          console.log(`[MCP-EXT-MAIN] ⭐ 执行工具: ${TOOL_get_selected_cell}`, request);
+          console.log(`[MCP-EXT-MAIN] ⭐ Executing tool: ${TOOL_get_selected_cell}`, request);
           
           try {
-            // 获取选中的单元格
-            const result = graph.getSelectionCell();
-            console.log(`[MCP-EXT-MAIN] 选中的单元格:`, result);
-            
-            // 如果没有选中单元格，创建一个虚拟的测试单元格以验证数据流
+            // Get the selected cell
+          const result = graph.getSelectionCell();
+            console.log(`[MCP-EXT-MAIN] Selected cell:`, result);
+
+            // If no cell is selected, create a virtual test cell to verify data flow
             const cellResult = result || {
               id: 'test-cell-id-auto-created',
               value: 'Auto-Created Test Cell',
@@ -70,28 +87,28 @@ export default defineUnlistedScript(() => {
             };
             
             if (!result) {
-              console.log(`[MCP-EXT-MAIN] ⚠️ 没有选中单元格，创建虚拟单元格用于测试`);
+              console.log(`[MCP-EXT-MAIN] ⚠️ No cell selected, creating virtual cell for testing`);
             }
             
-            // 创建响应对象
-            const reply = {
-              __event: reply_name(TOOL_get_selected_cell, request.__request_id),
-              __request_id: request.__request_id,
-              success: true,
+            // Create response object
+          const reply = {
+            __event: reply_name(TOOL_get_selected_cell, request.__request_id),
+            __request_id: request.__request_id,
+            success: true,
               cell: remove_circular_dependencies(cellResult),
-            };
+          };
             
-            console.log(`[MCP-EXT-MAIN] 发送响应: ${TOOL_get_selected_cell}`, reply);
+            console.log(`[MCP-EXT-MAIN] Sending response: ${TOOL_get_selected_cell}`, reply);
             
-            // 发送响应
-            bus.send_reply_to_server(reply);
+            // Send response
+          bus.send_reply_to_server(reply);
             
-            console.log(`[MCP-EXT-MAIN] 响应已发送`);
+            console.log(`[MCP-EXT-MAIN] Response sent`);
             return true;
           } catch (err) {
-            console.error(`[MCP-EXT-MAIN] ❌ 处理${TOOL_get_selected_cell}请求失败:`, err);
+            console.error(`[MCP-EXT-MAIN] ❌ Failed to process ${TOOL_get_selected_cell} request:`, err);
             
-            // 发送错误响应
+            // Send error response
             const errorReply = {
               __event: reply_name(TOOL_get_selected_cell, request.__request_id),
               __request_id: request.__request_id,
@@ -99,16 +116,16 @@ export default defineUnlistedScript(() => {
               error: err instanceof Error ? err.message : String(err)
             };
             
-            console.log(`[MCP-EXT-MAIN] 发送错误响应:`, errorReply);
+            console.log(`[MCP-EXT-MAIN] Sending error response:`, errorReply);
             bus.send_reply_to_server(errorReply);
             return false;
           }
         });
 
         const TOOL_add_rectangle = "add-rectangle";
-        console.log(`[MCP-EXT-MAIN] 注册工具: ${TOOL_add_rectangle}`);
+        console.log(`[MCP-EXT-MAIN] Registering tool: ${TOOL_add_rectangle}`);
         const unregisterAddRectangle = bus.on_request_from_server(TOOL_add_rectangle, (request: any) => {
-          console.log(`[MCP-EXT-MAIN] 执行工具: ${TOOL_add_rectangle}`, request);
+          console.log(`[MCP-EXT-MAIN] Executing tool: ${TOOL_add_rectangle}`, request);
           const rectangle = add_new_rectangle(ui, {
             x: request.x || 200,
             y: request.y || 200,
@@ -119,7 +136,7 @@ export default defineUnlistedScript(() => {
               request.style ||
               "whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;",
           });
-          console.log(`[MCP-EXT-MAIN] 矩形已添加:`, rectangle);
+          console.log(`[MCP-EXT-MAIN] Rectangle added:`, rectangle);
 
           const reply = {
             __event: reply_name(TOOL_add_rectangle, request.__request_id),
@@ -127,39 +144,39 @@ export default defineUnlistedScript(() => {
             success: true,
             cell: remove_circular_dependencies(rectangle),
           };
-          console.log(`[MCP-EXT-MAIN] 发送响应: ${TOOL_add_rectangle}`, reply);
+          console.log(`[MCP-EXT-MAIN] Sending response: ${TOOL_add_rectangle}`, reply);
           bus.send_reply_to_server(reply);
         });
 
         const TOOL_delete_cell_by_id = "delete-cell-by-id";
-        console.log(`[MCP-EXT-MAIN] 注册工具: ${TOOL_delete_cell_by_id}`);
+        console.log(`[MCP-EXT-MAIN] Registering tool: ${TOOL_delete_cell_by_id}`);
         const unregisterDeleteCell = bus.on_request_from_server(TOOL_delete_cell_by_id, (request: any) => {
-          console.log(`[MCP-EXT-MAIN] 执行工具: ${TOOL_delete_cell_by_id}`, request);
+          console.log(`[MCP-EXT-MAIN] Executing tool: ${TOOL_delete_cell_by_id}`, request);
           const result = delete_cell_by_id(ui, {
             cell_id: request.cell_id,
           });
-          console.log(`[MCP-EXT-MAIN] 单元格删除结果:`, result);
+          console.log(`[MCP-EXT-MAIN] Cell deletion result:`, result);
           
           const reply = {
             __event: reply_name(TOOL_delete_cell_by_id, request.__request_id),
             __request_id: request.__request_id,
             success: result,
           };
-          console.log(`[MCP-EXT-MAIN] 发送响应: ${TOOL_delete_cell_by_id}`, reply);
+          console.log(`[MCP-EXT-MAIN] Sending response: ${TOOL_delete_cell_by_id}`, reply);
           bus.send_reply_to_server(reply);
         });
 
         const TOOL_add_edge = "add-edge";
-        console.log(`[MCP-EXT-MAIN] 注册工具: ${TOOL_add_edge}`);
+        console.log(`[MCP-EXT-MAIN] Registering tool: ${TOOL_add_edge}`);
         const unregisterAddEdge = bus.on_request_from_server(TOOL_add_edge, (request: any) => {
-          console.log(`[MCP-EXT-MAIN] 执行工具: ${TOOL_add_edge}`, request);
+          console.log(`[MCP-EXT-MAIN] Executing tool: ${TOOL_add_edge}`, request);
           const edge = add_edge(ui, {
             source_id: request.source_id,
             target_id: request.target_id,
             style: request.style,
             text: request.text,
           });
-          console.log(`[MCP-EXT-MAIN] 边已添加:`, edge);
+          console.log(`[MCP-EXT-MAIN] Edge added:`, edge);
 
           const reply = {
             __event: reply_name(TOOL_add_edge, request.__request_id),
@@ -167,18 +184,18 @@ export default defineUnlistedScript(() => {
             success: true,
             edge: remove_circular_dependencies(edge),
           };
-          console.log(`[MCP-EXT-MAIN] 发送响应: ${TOOL_add_edge}`, reply);
+          console.log(`[MCP-EXT-MAIN] Sending response: ${TOOL_add_edge}`, reply);
           bus.send_reply_to_server(reply);
         });
 
         const TOOL_get_shape_categories = "get-shape-categories";
-        console.log(`[MCP-EXT-MAIN] 注册工具: ${TOOL_get_shape_categories}`);
+        console.log(`[MCP-EXT-MAIN] Registering tool: ${TOOL_get_shape_categories}`);
         const unregisterGetShapeCategories = bus.on_request_from_server(
           TOOL_get_shape_categories,
           (request: any) => {
-            console.log(`[MCP-EXT-MAIN] 执行工具: ${TOOL_get_shape_categories}`, request);
+            console.log(`[MCP-EXT-MAIN] Executing tool: ${TOOL_get_shape_categories}`, request);
             const result = get_shape_categories(ui);
-            console.log(`[MCP-EXT-MAIN] 图形类别:`, result);
+            console.log(`[MCP-EXT-MAIN] Shape categories:`, result);
 
             const reply = {
               __event: reply_name(
@@ -189,21 +206,21 @@ export default defineUnlistedScript(() => {
               success: true,
               shape_categories: remove_circular_dependencies(result),
             };
-            console.log(`[MCP-EXT-MAIN] 发送响应: ${TOOL_get_shape_categories}`, reply);
+            console.log(`[MCP-EXT-MAIN] Sending response: ${TOOL_get_shape_categories}`, reply);
             bus.send_reply_to_server(reply);
           },
         );
 
         const TOOL_get_shapes_in_category = "get-shapes-in-category";
-        console.log(`[MCP-EXT-MAIN] 注册工具: ${TOOL_get_shapes_in_category}`);
+        console.log(`[MCP-EXT-MAIN] Registering tool: ${TOOL_get_shapes_in_category}`);
         const unregisterGetShapesInCategory = bus.on_request_from_server(
           TOOL_get_shapes_in_category,
           (request: any) => {
-            console.log(`[MCP-EXT-MAIN] 执行工具: ${TOOL_get_shapes_in_category}`, request);
+            console.log(`[MCP-EXT-MAIN] Executing tool: ${TOOL_get_shapes_in_category}`, request);
             const result = get_shapes_in_category(ui, {
               category_id: request.category_id,
             });
-            console.log(`[MCP-EXT-MAIN] 类别中的图形:`, result);
+            console.log(`[MCP-EXT-MAIN] Shapes in category:`, result);
 
             const reply = {
               __event: reply_name(
@@ -214,19 +231,19 @@ export default defineUnlistedScript(() => {
               success: true,
               shapes: remove_circular_dependencies(result),
             };
-            console.log(`[MCP-EXT-MAIN] 发送响应: ${TOOL_get_shapes_in_category}`, reply);
+            console.log(`[MCP-EXT-MAIN] Sending response: ${TOOL_get_shapes_in_category}`, reply);
             bus.send_reply_to_server(reply);
           },
         );
 
         const TOOL_get_shape_by_name = "get-shape-by-name";
-        console.log(`[MCP-EXT-MAIN] 注册工具: ${TOOL_get_shape_by_name}`);
+        console.log(`[MCP-EXT-MAIN] Registering tool: ${TOOL_get_shape_by_name}`);
         const unregisterGetShapeByName = bus.on_request_from_server(TOOL_get_shape_by_name, (request: any) => {
-          console.log(`[MCP-EXT-MAIN] 执行工具: ${TOOL_get_shape_by_name}`, request);
+          console.log(`[MCP-EXT-MAIN] Executing tool: ${TOOL_get_shape_by_name}`, request);
           const result = get_shape_by_name(ui, {
             shape_name: request.shape_name,
           });
-          console.log(`[MCP-EXT-MAIN] 找到的图形:`, result);
+          console.log(`[MCP-EXT-MAIN] Found shape:`, result);
 
           const reply = {
             __event: reply_name(TOOL_get_shape_by_name, request.__request_id),
@@ -234,14 +251,14 @@ export default defineUnlistedScript(() => {
             success: true,
             shape: remove_circular_dependencies(result),
           };
-          console.log(`[MCP-EXT-MAIN] 发送响应: ${TOOL_get_shape_by_name}`, reply);
+          console.log(`[MCP-EXT-MAIN] Sending response: ${TOOL_get_shape_by_name}`, reply);
           bus.send_reply_to_server(reply);
         });
 
         const TOOL_add_cell_of_shape = "add-cell-of-shape";
-        console.log(`[MCP-EXT-MAIN] 注册工具: ${TOOL_add_cell_of_shape}`);
+        console.log(`[MCP-EXT-MAIN] Registering tool: ${TOOL_add_cell_of_shape}`);
         const unregisterAddCellOfShape = bus.on_request_from_server(TOOL_add_cell_of_shape, (request: any) => {
-          console.log(`[MCP-EXT-MAIN] 执行工具: ${TOOL_add_cell_of_shape}`, request);
+          console.log(`[MCP-EXT-MAIN] Executing tool: ${TOOL_add_cell_of_shape}`, request);
           const result = add_cell_of_shape(ui, {
             shape_name: request.shape_name,
             x: request.x,
@@ -251,7 +268,7 @@ export default defineUnlistedScript(() => {
             text: request.text,
             style: request.style,
           });
-          console.log(`[MCP-EXT-MAIN] 图形单元格已添加:`, result);
+          console.log(`[MCP-EXT-MAIN] Shape cell added:`, result);
 
           const reply = {
             __event: reply_name(TOOL_add_cell_of_shape, request.__request_id),
@@ -259,27 +276,25 @@ export default defineUnlistedScript(() => {
             success: true,
             cell: remove_circular_dependencies(result),
           };
-          console.log(`[MCP-EXT-MAIN] 发送响应: ${TOOL_add_cell_of_shape}`, reply);
+          console.log(`[MCP-EXT-MAIN] Sending response: ${TOOL_add_cell_of_shape}`, reply);
           bus.send_reply_to_server(reply);
         });
         
-        // 添加卸载逻辑
+        // Add unload logic
         const unloadHandler = () => {
-          console.log("[MCP-EXT-MAIN] 页面卸载，移除所有事件监听器");
-          unregisterGetSelectedCell();
-          unregisterAddRectangle();
-          unregisterDeleteCell();
-          unregisterAddEdge();
-          unregisterGetShapeCategories();
-          unregisterGetShapesInCategory();
-          unregisterGetShapeByName();
-          unregisterAddCellOfShape();
+          console.log("[MCP-EXT-MAIN] Page unloading, removing all event listeners");
+          // Note: The unregister variables are void type, not callable functions
+          // We must use window.removeEventListener directly if needed
+          // For now, we'll just log the unload event
+          
+          // Alternatively, you could redesign the bus system to return removable listeners
+          // or implement a proper unsubscribe mechanism
         };
         
         window.addEventListener('unload', unloadHandler);
       });
     } else {
-      console.log("[MCP-EXT-MAIN] 等待Draw.io加载...");
+      console.log("[MCP-EXT-MAIN] Waiting for Draw.io to load...");
       const el = document.querySelector(
         "body > div.geMenubarContainer > div.geMenubar > div > button",
       );

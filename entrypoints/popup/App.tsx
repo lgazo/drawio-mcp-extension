@@ -1,27 +1,28 @@
 import { useState, useEffect } from "react";
 import "./App.css";
+import { browser } from "wxt/browser";
 
 function App() {
   const [connectionStatus, setConnectionStatus] = useState<"connected" | "connecting" | "disconnected">("disconnected");
   const [websocketUrl, setWebsocketUrl] = useState("ws://localhost:3000");
 
   useEffect(() => {
-    // 检查扩展连接状态
-    chrome.runtime.sendMessage({ type: "GET_CONNECTION_STATUS" }, (response) => {
+    // Check extension connection status
+    browser.runtime.sendMessage({ type: "GET_CONNECTION_STATUS" }, (response: { status?: string }) => {
       if (response && response.status) {
-        setConnectionStatus(response.status);
+        setConnectionStatus(response.status as "connected" | "connecting" | "disconnected");
       }
     });
 
-    // 监听连接状态变化
+    // Listen for connection status changes
     const listener = (message: any) => {
       if (message.type === "WS_STATUS") {
         setConnectionStatus(message.connected ? "connected" : "disconnected");
       }
     };
     
-    chrome.runtime.onMessage.addListener(listener);
-    return () => chrome.runtime.onMessage.removeListener(listener);
+    browser.runtime.onMessage.addListener(listener);
+    return () => browser.runtime.onMessage.removeListener(listener);
   }, []);
 
   return (
@@ -31,10 +32,10 @@ function App() {
       <div className="status-container">
         <div className="status-indicator">
           <div className={`status-dot ${connectionStatus}`}></div>
-          <span>状态: {
-            connectionStatus === "connected" ? "已连接" : 
-            connectionStatus === "connecting" ? "连接中..." : 
-            "未连接"
+          <span>Status: {
+            connectionStatus === "connected" ? "Connected" : 
+            connectionStatus === "connecting" ? "Connecting..." : 
+            "Disconnected"
           }</span>
         </div>
       </div>
@@ -44,19 +45,19 @@ function App() {
       </div>
 
       <div className="features-list">
-        <h3>支持的功能:</h3>
+        <h3>Supported Features:</h3>
         <ul>
-          <li>获取选中的单元格</li>
-          <li>添加矩形形状</li>
-          <li>添加连接线（边）</li>
-          <li>删除单元格</li>
-          <li>获取形状类别</li>
-          <li>添加特定形状</li>
+          <li>Get selected cell</li>
+          <li>Add rectangle shape</li>
+          <li>Add connection line (edge)</li>
+          <li>Delete cell</li>
+          <li>Get shape categories</li>
+          <li>Add specific shape</li>
         </ul>
       </div>
 
       <div className="instructions">
-        <p>请打开 <a href="https://app.diagrams.net/" target="_blank">Draw.io</a> 网站以使用MCP功能</p>
+        <p>Please open <a href="https://app.diagrams.net/" target="_blank">Draw.io</a> website to use MCP features</p>
       </div>
     </div>
   );

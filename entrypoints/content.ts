@@ -2,14 +2,14 @@ import { bus_reply_stream, bus_request_stream } from "@/types";
 
 // Send message to WebSocket via background
 function sendToWebSocket(data: any) {
-  console.log("[MCP-EXT-CONTENT] 向WebSocket发送消息:", data);
+  console.log("[MCP-EXT-CONTENT] Sending message to WebSocket:", data);
   browser.runtime.sendMessage({
     type: "SEND_WS_MESSAGE",
     data: data,
   }).then((response) => {
-    console.log("[MCP-EXT-CONTENT] 消息已发送到background脚本，响应:", response);
+    console.log("[MCP-EXT-CONTENT] Message sent to background script, response:", response);
   }).catch(err => {
-    console.error("[MCP-EXT-CONTENT] 发送消息到background脚本失败:", err);
+    console.error("[MCP-EXT-CONTENT] Failed to send message to background script:", err);
   });
 }
 
@@ -21,33 +21,33 @@ export default defineContentScript({
     "*://*.draw.io/*"
   ],
   async main() {
-    console.log("[MCP-EXT-CONTENT] 内容脚本已加载", { time: Date.now(), window, browser });
+    console.log("[MCP-EXT-CONTENT] Content script loaded", { time: Date.now(), window, browser });
     
-    // 打印bus常量的值，确保它们被正确导入
-    console.log("[MCP-EXT-CONTENT] 总线常量:", { 
+    // Print bus constant values to ensure they were imported correctly
+    console.log("[MCP-EXT-CONTENT] Bus constants:", { 
       bus_request_stream, 
       bus_reply_stream,
       types: typeof bus_request_stream
     });
     
     try {
-      console.log("[MCP-EXT-CONTENT] 正在注入主要脚本到页面...");
-      await injectScript("/main_world.js", {
-        keepInDom: true,
-      });
-      console.log("[MCP-EXT-CONTENT] 主要脚本注入成功");
+      console.log("[MCP-EXT-CONTENT] Injecting main script into page...");
+    await injectScript("/main_world.js", {
+      keepInDom: true,
+    });
+      console.log("[MCP-EXT-CONTENT] Main script injected successfully");
     } catch (err) {
-      console.error("[MCP-EXT-CONTENT] 注入主要脚本失败:", err);
+      console.error("[MCP-EXT-CONTENT] Failed to inject main script:", err);
     }
 
-    // 发送一个测试事件，检查事件系统是否正常工作
+    // Send a test event to check if the event system is working
     setTimeout(() => {
-      console.log("[MCP-EXT-CONTENT] 发送测试事件到页面");
+      console.log("[MCP-EXT-CONTENT] Sending test event to page");
       const testEvent = new CustomEvent("TEST_EVENT", { detail: { test: true } });
       window.dispatchEvent(testEvent);
       
-      // 测试BUS_REQUEST事件
-      console.log(`[MCP-EXT-CONTENT] 发送测试 ${bus_request_stream} 事件到页面`);
+      // Test BUS_REQUEST event
+      console.log(`[MCP-EXT-CONTENT] Sending test ${bus_request_stream} event to page`);
       const busRequestEvent = new CustomEvent(bus_request_stream, { 
         detail: { 
           __event: "test-event", 
@@ -59,52 +59,52 @@ export default defineContentScript({
 
     // Listen for messages from background
     browser.runtime.onMessage.addListener((message) => {
-      console.log("[MCP-EXT-CONTENT] 收到来自background的消息:", message);
+      console.log("[MCP-EXT-CONTENT] Received message from background:", message);
       
       if (message.type === "WS_MESSAGE") {
         console.log(
-          "[MCP-EXT-CONTENT] 收到WebSocket消息，转发到页面:",
+          "[MCP-EXT-CONTENT] Received WebSocket message, forwarding to page:",
           message.data,
         );
         
         try {
-          // 确保message.data是有效的对象
+          // Ensure message.data is a valid object
           if (message.data && (typeof message.data === 'object' || typeof message.data === 'string')) {
             const eventData = typeof message.data === 'string' ? JSON.parse(message.data) : message.data;
             
-            console.log("[MCP-EXT-CONTENT] 消息详情:", {
+            console.log("[MCP-EXT-CONTENT] Message details:", {
               messageType: message.type,
               hasEvent: !!eventData.__event,
-              eventName: eventData.__event || "无事件名",
-              requestId: eventData.__request_id || "无请求ID",
+              eventName: eventData.__event || "No event name",
+              requestId: eventData.__request_id || "No request ID",
               fullData: eventData
             });
             
-            // 检查是否有__event字段，这是服务器请求的标志
+            // Check if there's an __event field, which is a sign of a server request
             if (eventData.__event) {
-              console.log(`[MCP-EXT-CONTENT] 检测到有效的MCP请求事件: ${eventData.__event}`);
+              console.log(`[MCP-EXT-CONTENT] Detected valid MCP request event: ${eventData.__event}`);
               
-              // 创建并分发BUS_REQUEST事件到页面
-              console.log(`[MCP-EXT-CONTENT] 准备分发事件 ${bus_request_stream} 到页面，事件内容:`, eventData);
+              // Create and dispatch BUS_REQUEST event to the page
+              console.log(`[MCP-EXT-CONTENT] Preparing to dispatch event ${bus_request_stream} to page, event content:`, eventData);
               
-              // 在分发前添加调试代码
+              // Add debug code before dispatching
               window.addEventListener("BUS_REQUEST_DEBUG", (e) => {
-                console.log("[MCP-EXT-CONTENT] 调试事件收到:", e);
+                console.log("[MCP-EXT-CONTENT] Debug event received:", e);
               }, { once: true });
               
-              // 分发一个测试事件，检查事件系统是否正常工作
+              // Dispatch a test event to check if the event system is working
               window.dispatchEvent(new CustomEvent("BUS_REQUEST_DEBUG", { detail: { test: true } }));
               
-              // 创建并分发实际事件
+              // Create and dispatch the actual event
               const event = new CustomEvent(bus_request_stream, { detail: eventData });
               window.dispatchEvent(event);
-              console.log(`[MCP-EXT-CONTENT] 已分发 ${bus_request_stream} 事件到页面`);
+              console.log(`[MCP-EXT-CONTENT] Dispatched ${bus_request_stream} event to page`);
               
-              // 如果是特定请求，可以直接回复测试数据
+              // If it's a specific request, can directly reply with test data
               if (eventData.__event === 'get-selected-cell') {
-                console.log(`[MCP-EXT-CONTENT] 收到选中单元格请求，准备直接回复测试数据`);
+                console.log(`[MCP-EXT-CONTENT] Received selected cell request, preparing direct test response`);
                 
-                // 直接创建并发送测试响应
+                // Directly create and send test response
                 const testReply = {
                   __event: `${eventData.__event}.${eventData.__request_id}`,
                   __request_id: eventData.__request_id,
@@ -119,58 +119,63 @@ export default defineContentScript({
                   }
                 };
                 
-                // 延迟1秒发送，确保可以看到日志
+                // Delay 1 second to ensure logs are visible
                 setTimeout(() => {
-                  console.log(`[MCP-EXT-CONTENT] 发送测试响应:`, testReply);
+                  console.log(`[MCP-EXT-CONTENT] Sending test response:`, testReply);
                   sendToWebSocket(testReply);
                 }, 1000);
               }
             } else {
-              console.log("[MCP-EXT-CONTENT] 消息不包含__event字段，无法分发到页面", eventData);
+              console.log("[MCP-EXT-CONTENT] Message doesn't contain __event field, cannot dispatch to page", eventData);
             }
           } else {
-            console.error("[MCP-EXT-CONTENT] 收到的消息data不是有效对象:", message.data);
+            console.error("[MCP-EXT-CONTENT] Received message data is not a valid object:", message.data);
           }
         } catch (err) {
-          console.error("[MCP-EXT-CONTENT] 处理WebSocket消息失败:", err);
+          console.error("[MCP-EXT-CONTENT] Failed to process WebSocket message:", err);
         }
       } else if (message.type === "WS_STATUS") {
         console.log(
-          "[MCP-EXT-CONTENT] WebSocket状态更新:",
-          message.connected ? "已连接" : "已断开",
+          "[MCP-EXT-CONTENT] WebSocket status update:",
+          message.connected ? "Connected" : "Disconnected",
         );
       }
     });
 
     window.addEventListener(bus_reply_stream, (message: any) => {
-      console.log("[MCP-EXT-CONTENT] 收到来自页面的响应:", message.detail);
+      console.log("[MCP-EXT-CONTENT] Received response from page:", message.detail);
       try {
-        const reply = message.detail;
+      const reply = message.detail;
         if (reply) {
-          console.log("[MCP-EXT-CONTENT] 将页面响应发送到服务器:", reply);
-          sendToWebSocket(reply);
+          console.log("[MCP-EXT-CONTENT] Sending page response to server:", reply);
+      sendToWebSocket(reply);
         } else {
-          console.error("[MCP-EXT-CONTENT] 页面响应不包含有效数据");
+          console.error("[MCP-EXT-CONTENT] Page response doesn't contain valid data");
         }
       } catch (err) {
-        console.error("[MCP-EXT-CONTENT] 处理页面响应失败:", err);
+        console.error("[MCP-EXT-CONTENT] Failed to process page response:", err);
       }
     });
     
-    // 检查页面是否已加载完成
+    // Check if the page is already fully loaded
     if (document.readyState === "complete") {
-      console.log("[MCP-EXT-CONTENT] 页面已完全加载");
+      console.log("[MCP-EXT-CONTENT] Page is already fully loaded");
     } else {
-      console.log("[MCP-EXT-CONTENT] 页面尚未完全加载，等待...");
+      console.log("[MCP-EXT-CONTENT] Page not fully loaded yet, waiting...");
       window.addEventListener("load", () => {
-        console.log("[MCP-EXT-CONTENT] 页面加载完成");
+        console.log("[MCP-EXT-CONTENT] Page load complete");
       });
     }
     
-    // 定期检查Draw.io状态
+    // Periodically check Draw.io status
+    // Fix type error by declaring Draw property on window
+    interface WindowWithDraw extends Window {
+      Draw?: any;
+    }
+    
     const checkDrawioInterval = setInterval(() => {
-      if (window.Draw) {
-        console.log("[MCP-EXT-CONTENT] 检测到Draw.io已加载");
+      if ((window as WindowWithDraw).Draw) {
+        console.log("[MCP-EXT-CONTENT] Detected Draw.io has loaded");
         clearInterval(checkDrawioInterval);
       }
     }, 2000);

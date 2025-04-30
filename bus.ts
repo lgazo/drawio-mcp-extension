@@ -2,42 +2,42 @@ import { Bus, bus_reply_stream, bus_request_stream } from "./types";
 
 export const bus: Bus = {
   send_reply_to_server: (reply: any) => {
-    console.log(`[MCP-EXT-BUS] 发送响应到服务器:`, reply);
+    console.log(`[MCP-EXT-BUS] Sending response to server:`, reply);
     try {
-      window.dispatchEvent(new CustomEvent(bus_reply_stream, { detail: reply }));
-      console.log(`[MCP-EXT-BUS] 响应事件已分发: ${bus_reply_stream}`, {
+    window.dispatchEvent(new CustomEvent(bus_reply_stream, { detail: reply }));
+      console.log(`[MCP-EXT-BUS] Response event dispatched: ${bus_reply_stream}`, {
         eventName: reply.__event,
         requestId: reply.__request_id
       });
     } catch (err) {
-      console.error(`[MCP-EXT-BUS] 分发响应事件失败:`, err);
+      console.error(`[MCP-EXT-BUS] Failed to dispatch response event:`, err);
     }
   },
   on_request_from_server: (event_name, request_listener) => {
-    console.log(`[MCP-EXT-BUS] 注册事件监听器: ${event_name} 到 ${bus_request_stream}`);
+    console.log(`[MCP-EXT-BUS] Registering event listener: ${event_name} to ${bus_request_stream}`);
     
-    // 全局测试事件监听器，验证事件系统是否正常工作
+    // Global test event listener to verify event system is working
     window.addEventListener("BUS_TEST_EVENT", (e) => {
-      console.log(`[MCP-EXT-BUS] 测试事件收到，事件监听系统正常工作`);
+      console.log(`[MCP-EXT-BUS] Test event received, event listening system working normally`);
     }, { once: true });
     
-    // 验证事件系统
-    console.log(`[MCP-EXT-BUS] 触发测试事件，验证事件系统`);
+    // Verify event system
+    console.log(`[MCP-EXT-BUS] Triggering test event to verify event system`);
     setTimeout(() => {
       window.dispatchEvent(new CustomEvent("BUS_TEST_EVENT"));
     }, 100);
     
     const listener = (emitter_data: any) => {
       try {
-        console.log(`[MCP-EXT-BUS] 收到事件流: ${bus_request_stream}`, emitter_data);
+        console.log(`[MCP-EXT-BUS] Received event stream: ${bus_request_stream}`, emitter_data);
         
         if (!emitter_data || !emitter_data.detail) {
-          console.error(`[MCP-EXT-BUS] 收到的事件没有detail字段`);
+          console.error(`[MCP-EXT-BUS] Received event has no detail field`);
           return;
         }
         
-        const event = emitter_data.detail;
-        console.log(`[MCP-EXT-BUS] 收到事件详情:`, {
+      const event = emitter_data.detail;
+        console.log(`[MCP-EXT-BUS] Received event details:`, {
           receivedEvent: event.__event,
           expectedEvent: event_name,
           requestId: event.__request_id,
@@ -45,28 +45,28 @@ export const bus: Bus = {
           eventKeys: event ? Object.keys(event) : []
         });
         
-        if (event.__event === event_name) {
-          console.log(`[MCP-EXT-BUS] 💡 匹配成功! 处理事件: ${event_name}`, event);
+      if (event.__event === event_name) {
+          console.log(`[MCP-EXT-BUS] 💡 Match successful! Processing event: ${event_name}`, event);
           try {
             const result = request_listener(event);
-            console.log(`[MCP-EXT-BUS] 事件处理完成: ${event_name}`, { result });
+            console.log(`[MCP-EXT-BUS] Event processing completed: ${event_name}`, { result });
           } catch (err) {
-            console.error(`[MCP-EXT-BUS] 处理事件 ${event_name} 失败:`, err);
+            console.error(`[MCP-EXT-BUS] Failed to process event ${event_name}:`, err);
           }
         } else {
-          console.log(`[MCP-EXT-BUS] 忽略不匹配的事件, 期望:${event_name}, 实际:${event.__event || '未定义'}`);
+          console.log(`[MCP-EXT-BUS] Ignoring non-matching event, expected:${event_name}, actual:${event.__event || 'undefined'}`);
         }
       } catch (err) {
-        console.error(`[MCP-EXT-BUS] 处理事件流失败:`, err);
+        console.error(`[MCP-EXT-BUS] Failed to process event stream:`, err);
       }
     };
     
-    // 添加事件监听器
-    console.log(`[MCP-EXT-BUS] 添加事件监听器: ${bus_request_stream} -> ${event_name}`);
+    // Add event listener
+    console.log(`[MCP-EXT-BUS] Adding event listener: ${bus_request_stream} -> ${event_name}`);
     window.addEventListener(bus_request_stream, listener);
     
     return () => {
-      console.log(`[MCP-EXT-BUS] 移除事件监听器: ${event_name}`);
+      console.log(`[MCP-EXT-BUS] Removing event listener: ${event_name}`);
       window.removeEventListener(bus_request_stream, listener);
     };
   },
