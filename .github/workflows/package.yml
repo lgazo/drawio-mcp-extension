@@ -1,0 +1,37 @@
+name: package
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [23.x]
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Package Chrome
+        run: pnpm run zip
+
+      - name: Package Firefox
+        run: pnpm run zip:firefox
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-zip
+          path: .output/*.zip
