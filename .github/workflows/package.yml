@@ -22,9 +22,7 @@ jobs:
           cache: "pnpm"
 
       - name: Set env
-        run: |
-            OUTPUT_FROM_PREVIOUS_STEP=$(pnpm pkg get version)
-            echo "::set-env name=VERSION::$OUTPUT_FROM_PREVIOUS_STEP"
+        run: echo "VERSION=$(pnpm pkg get version)" >> $GITHUB_ENV
 
       - name: Install dependencies
         run: pnpm install
@@ -37,7 +35,7 @@ jobs:
 
       - name: check
         run: echo ${{ env.version }}
-        
+
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
