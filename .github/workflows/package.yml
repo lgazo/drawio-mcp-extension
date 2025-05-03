@@ -22,7 +22,7 @@ jobs:
           cache: "pnpm"
 
       - name: Set env
-        run: echo "VERSION=$(pnpm pkg get version)" >> $GITHUB_ENV
+        run: echo "VERSION=$(pnpm pkg get version | sed 's/^"//;s/$"//')" >> $GITHUB_ENV
 
       - name: Install dependencies
         run: pnpm install
@@ -34,7 +34,7 @@ jobs:
         run: pnpm run zip:firefox
 
       - name: check
-        run: echo ${{ env.version }}
+        run: ls -la .output
 
       - name: Upload
         uses: actions/upload-artifact@v4
