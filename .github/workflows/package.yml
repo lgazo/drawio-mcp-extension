@@ -22,7 +22,7 @@ jobs:
           cache: "pnpm"
 
       - name: Set env
-        run: echo "VERSION=$(pnpm pkg get version | sed 's/^"//;s/$"//')" >> $GITHUB_ENV
+        run: echo "VERSION=$(pnpm pkg get version | sed 's/^"//;s/"$//')" >> $GITHUB_ENV
 
       - name: Install dependencies
         run: pnpm install
