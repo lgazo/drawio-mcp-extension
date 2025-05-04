@@ -7,7 +7,8 @@ export default defineConfig({
     web_accessible_resources: [
       {
         resources: ["main_world.js"],
-        matches: ["*://*/*"],
+        // matches: ["*://*/*"],
+        matches: ["*://app.diagrams.net/*"],
       },
     ],
   },
