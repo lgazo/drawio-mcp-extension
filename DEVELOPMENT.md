@@ -16,3 +16,11 @@ export default defineWebExtConfig({
 ## Popup
 
 chrome-extension://kaojkbhgfapmlcpdfiacogniedjfbifg/popup.html
+
+# Publishing
+
+Chrome Web Store:
+https://chrome.google.com/u/2/webstore/devconsole
+
+Mozilla Firefox Add-ons:
+https://addons.mozilla.org/en-US/developers/addons
