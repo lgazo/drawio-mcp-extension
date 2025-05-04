@@ -19,8 +19,14 @@ chrome-extension://kaojkbhgfapmlcpdfiacogniedjfbifg/popup.html
 
 # Publishing
 
-Chrome Web Store:
+Badge inspiration from https://github.com/timbru31/amazon-tag-remover
+
+## Chrome Web Store
+
 https://chrome.google.com/u/2/webstore/devconsole
 
-Mozilla Firefox Add-ons:
+[Branding guidelines](https://developer.chrome.com/docs/webstore/branding)
+
+## Mozilla Firefox Add-ons
+
 https://addons.mozilla.org/en-US/developers/addons
