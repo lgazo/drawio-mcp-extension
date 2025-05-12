@@ -1,33 +1,63 @@
-import { useState } from "react";
-import reactLogo from "@/assets/react.svg";
-import wxtLogo from "/logo.svg";
+import { useState, useEffect } from "react";
 import "./App.css";
 
-function App() {
-  const [count, setCount] = useState(0);
+type ConnectionState = "connected" | "connecting" | "disconnected";
 
+function App() {
+  const [connectionState, setConnectionState] = useState<ConnectionState>("disconnected");
+  
+  useEffect(() => {
+    // Request connection state from background script when popup opens
+    browser.runtime.sendMessage({ type: "GET_CONNECTION_STATE" })
+      .then((response) => {
+        if (response && response.state) {
+          setConnectionState(response.state);
+        }
+      })
+      .catch(error => console.error("Error getting connection state:", error));
+    
+    // Listen for connection state updates
+    const listener = (message: any) => {
+      if (message.type === "CONNECTION_STATE_UPDATE") {
+        setConnectionState(message.state);
+      }
+      return true;
+    };
+    
+    browser.runtime.onMessage.addListener(listener);
+    
+    return () => {
+      browser.runtime.onMessage.removeListener(listener);
+    };
+  }, []);
+  
+  // Get the appropriate logo based on connection state
+  const logoSrc = `/logo_${connectionState}.svg`;
+  
   return (
     <>
       <div>
-        <a href="https://wxt.dev" target="_blank">
-          <img src={wxtLogo} className="logo" alt="WXT logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
+        <a href="https://github.com/lgazo/drawio-mcp-extension" target="_blank">
+          <img src={logoSrc} className="logo" alt="WXT logo" />
         </a>
       </div>
-      <h1>WXT + React</h1>
+      <h1>Draw.io MCP</h1>
+      <div className="connection-status">
+        <div className={`status-indicator ${connectionState}`}></div>
+        <span>Status: {connectionState.charAt(0).toUpperCase() + connectionState.slice(1)}</span>
+      </div>
       <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
         <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
+          The WebSocket connection is currently <strong>{connectionState}</strong>.
         </p>
+        {connectionState !== "connected" && (
+          <p>
+            {connectionState === "connecting" 
+              ? "Attempting to connect to the MCP server..." 
+              : "Not connected to the MCP server. The server may be offline."}
+          </p>
+        )}
       </div>
-      <p className="read-the-docs">
-        Click on the WXT and React logos to learn more
-      </p>
     </>
   );
 }

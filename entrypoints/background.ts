@@ -5,6 +5,9 @@ export default defineBackground(() => {
   let reconnectAttempts = 0;
   const maxReconnectAttempts = 5;
   const reconnectDelay = 3000; // 3 seconds
+  
+  // Track current connection state
+  let currentConnectionState: "connected" | "connecting" | "disconnected" = "disconnected";
 
   // Set initial icon state
   setExtensionIcon("disconnected");
@@ -13,6 +16,9 @@ export default defineBackground(() => {
   function setExtensionIcon(
     state: "connected" | "connecting" | "disconnected",
   ) {
+    // Update current connection state
+    currentConnectionState = state;
+    
     const iconSizes = [16, 32, 48, 128];
     const iconPaths = iconSizes.reduce(
       (acc, size) => ({
@@ -23,6 +29,14 @@ export default defineBackground(() => {
     );
 
     browser.action.setIcon({ path: iconPaths }).catch(console.error);
+    
+    // Broadcast connection state update to any open popups
+    browser.runtime.sendMessage({ 
+      type: "CONNECTION_STATE_UPDATE", 
+      state: currentConnectionState 
+    }).catch(() => {
+      // Ignore errors (no popup listening)
+    });
   }
 
   // Function to establish WebSocket connection
@@ -93,8 +107,9 @@ export default defineBackground(() => {
     }
   }
 
-  // Handle messages from content scripts
+  // Handle messages from content scripts and popup
   browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    // Handle messages from content scripts
     if (
       message.type === "SEND_WS_MESSAGE" &&
       socket?.readyState === WebSocket.OPEN
@@ -106,6 +121,13 @@ export default defineBackground(() => {
       });
       socket.send(ser);
     }
+    
+    // Handle connection state request from popup
+    if (message.type === "GET_CONNECTION_STATE") {
+      console.debug("[background] Connection state requested by popup");
+      sendResponse({ state: currentConnectionState });
+    }
+    
     return true; // Keep the message channel open for async response
   });
 
