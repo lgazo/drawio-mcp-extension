@@ -4,6 +4,9 @@ Let's do some Vibe Diagramming with the most wide-spread diagramming tool called
 
 This is a necessary counterpart for [Draw.io MCP Server](https://github.com/lgazo/drawio-mcp-server)
 
+[![Build project](https://github.com/lgazo/drawio-mcp-extension/actions/workflows/ci.yml/badge.svg)](https://github.com/lgazo/drawio-mcp-extension/actions/workflows/ci.yml)
+
+
 ## Requirements
 
 ### Optional for Development
