@@ -42,7 +42,7 @@ export default defineBackground(() => {
   // Function to establish WebSocket connection
   function connect() {
     setExtensionIcon("connecting");
-    socket = new WebSocket("ws://localhost:3000");
+    socket = new WebSocket("ws://localhost:3333");
 
     socket.addEventListener("open", (event) => {
       console.debug("[background] WebSocket connection established", event);
