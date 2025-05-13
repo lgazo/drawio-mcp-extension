@@ -13,3 +13,36 @@ export type Bus = {
     listener: BusListener<RQ>,
   ) => void;
 };
+
+/**
+ * Draw.io API type definitions
+ */
+
+// Graph interface for the editor's graph property
+export interface DrawioGraph {
+  getSelectionCell: () => any;
+  // Add other graph methods as needed
+}
+
+// Editor interface for the UI's editor property
+export interface DrawioEditor {
+  graph: DrawioGraph;
+  // Add other editor properties as needed
+}
+
+// UI interface for the loadPlugin callback parameter
+export interface DrawioUI {
+  editor: DrawioEditor;
+  // Add other UI properties as needed
+}
+
+export interface Draw {
+  loadPlugin: (callback: (ui: DrawioUI) => void) => void;
+}
+
+// Extend the Window interface to include the Draw property
+declare global {
+  interface Window {
+    Draw?: Draw;
+  }
+}

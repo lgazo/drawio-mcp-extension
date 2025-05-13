@@ -10,13 +10,14 @@ import {
 } from "@/drawio";
 import { bus } from "../bus";
 import { reply_name } from "@/events";
+import { DrawioUI } from "../types";
 
 export default defineUnlistedScript(() => {
   console.log("Hello from the main world");
   const checkInterval = setInterval(() => {
     if (window.Draw) {
       clearInterval(checkInterval);
-      window.Draw.loadPlugin((ui: unknown) => {
+      window.Draw.loadPlugin((ui: DrawioUI) => {
         console.log("plugin loaded", ui);
         const { editor } = ui;
         const { graph } = editor;
