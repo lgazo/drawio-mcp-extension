@@ -28,7 +28,8 @@ export default defineBackground(() => {
       {},
     );
 
-    browser.action.setIcon({ path: iconPaths }).catch(console.error);
+    const browserAction = browser.browserAction ? browser.browserAction : browser.action;
+    browserAction.setIcon({ path: iconPaths });
     
     // Broadcast connection state update to any open popups
     browser.runtime.sendMessage({ 
