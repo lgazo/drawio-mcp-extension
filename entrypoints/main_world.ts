@@ -174,7 +174,7 @@ export default defineUnlistedScript(() => {
         "body > div.geMenubarContainer > div.geMenubar > div > button",
       );
       if (el) {
-        el.innerHTML = Date.now();
+        el.innerHTML = Date.now().toString();
       }
     }
   }, 1000);
