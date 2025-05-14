@@ -35,11 +35,15 @@ There are the following options to install the Extension itself.
   ></a>
 </p>
 
-### GitHub package
+### Release package
+
+You can download a ZIP for one of the browsers in the [Release section](https://github.com/lgazo/drawio-mcp-extension/releases).
+
+### GitHub CI package
 
 You can download a ZIP with both versions of the Extension for Chrome and Firefox in the [`package` workflow](https://github.com/lgazo/drawio-mcp-extension/actions/workflows/package.yml).
 
-Just expand the `Upload` step and follow-up the `Artifact download URL`.
+Just open a job run, scroll to the **Artifact** section, download the ZIP and side load the extension for one of the supported browsers.
 
 ### Local build
 
@@ -70,5 +74,9 @@ pnpm run zip:firefox
 ```
 
 ## Related Resources
+
+[Troubleshooting](./TROUBLESHOOTING.md)
+
+[Contributing](./CONTRIBUTING.md)
 
 [Development](./DEVELOPMENT.md)
