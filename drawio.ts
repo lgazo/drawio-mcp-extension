@@ -1,5 +1,8 @@
 import { shape_library_stub } from "./drawio_stub";
 
+export type CellId = string;
+export type CellStyle = string;
+
 export function add_new_rectangle(
   ui: any,
   options: {
@@ -8,7 +11,7 @@ export function add_new_rectangle(
     width?: number;
     height?: number;
     text?: string;
-    style?: string;
+    style?: CellStyle;
   },
 ) {
   const { editor } = ui;
@@ -55,7 +58,7 @@ export function add_new_rectangle(
 export function delete_cell_by_id(
   ui: any,
   options: {
-    cell_id: string;
+    cell_id: CellId;
   },
 ): boolean {
   const { editor } = ui;
@@ -89,9 +92,9 @@ export function delete_cell_by_id(
 export function add_edge(
   ui: any,
   options: {
-    source_id: string;
-    target_id: string;
-    style?: string;
+    source_id: CellId;
+    target_id: CellId;
+    style?: CellStyle;
     text?: string;
   },
 ): any | null {
@@ -264,7 +267,7 @@ export function add_cell_of_shape(
     width?: number;
     height?: number;
     text?: string;
-    style?: string;
+    style?: CellStyle;
   },
 ) {
   const { editor } = ui;
