@@ -5,14 +5,25 @@
 export const bus_request_stream = "BUS_REQUEST";
 export const bus_reply_stream = "BUS_REPLY";
 
+export type OptionKey = string;
+
 export type BusListener<RQ> = (request: RQ) => void;
-export type Bus = {
-  send_reply_to_server: <RL>(reply: RL) => void;
-  on_request_from_server: <RQ>(
-    event_name: string,
-    listener: BusListener<RQ>,
-  ) => void;
-};
+
+export type SendReplyToServer = <RL>(reply: RL) => void;
+export type OnRequestFromServer = <RQ>(
+  event_name: string,
+  listener: BusListener<RQ>,
+) => void;
+export type OnStandardToolRequestFromServer = (
+  event_name: string,
+  ui: DrawioUI,
+  accepted_option_keys: Set<OptionKey>,
+  drawio_function: DrawIOFunction
+) => void;
+
+export type DrawioCellOptions = Record<OptionKey, unknown>;
+
+export type DrawIOFunction = (ui: DrawioUI, options: DrawioCellOptions) => unknown;
 
 /**
  * Draw.io API type definitions

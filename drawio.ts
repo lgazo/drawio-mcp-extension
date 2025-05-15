@@ -1,4 +1,5 @@
 import { shape_library_stub } from "./drawio_stub";
+import { DrawioCellOptions } from "./types";
 
 export type CellId = string;
 export type CellStyle = string;
@@ -57,15 +58,14 @@ export function add_new_rectangle(
  */
 export function delete_cell_by_id(
   ui: any,
-  options: {
-    cell_id: CellId;
-  },
+  options: DrawioCellOptions
 ): boolean {
   const { editor } = ui;
   const { graph } = editor;
 
   // Get the cell by its ID
-  const cell = graph.getModel().getCell(options.cell_id);
+  const cell_id = options.cell_id as CellId;
+  const cell = graph.getModel().getCell(cell_id);
 
   if (!cell) {
     return false;
@@ -91,12 +91,7 @@ export function delete_cell_by_id(
  */
 export function add_edge(
   ui: any,
-  options: {
-    source_id: CellId;
-    target_id: CellId;
-    style?: CellStyle;
-    text?: string;
-  },
+  options: DrawioCellOptions,
 ): any | null {
   const { editor } = ui;
   const { graph } = editor;
@@ -172,9 +167,7 @@ export function get_shape_categories(ui: any) {
  */
 export function get_shapes_in_category(
   ui: any,
-  options: {
-    category_id: string;
-  },
+  options: DrawioCellOptions,
 ) {
   //: string[] {
   // const { sidebar } = ui;
@@ -210,9 +203,11 @@ export function get_shapes_in_category(
  */
 export function get_shape_by_name(
   ui: any,
-  options: { shape_name: string },
+  options: DrawioCellOptions,
 ): any | null {
-  const lowerCaseName = options.shape_name.toLowerCase();
+
+  // const shape_name = options.shape_name as string;
+  // const lowerCaseName = shape_name.toLowerCase();
 
   // const { editor } = ui;
   // const { sidebar } = editor;
@@ -260,15 +255,7 @@ export function get_shape_by_name(
  */
 export function add_cell_of_shape(
   ui: any,
-  options: {
-    shape_name?: string;
-    x?: number;
-    y?: number;
-    width?: number;
-    height?: number;
-    text?: string;
-    style?: CellStyle;
-  },
+  options: DrawioCellOptions,
 ) {
   const { editor } = ui;
   const { graph, sidebar } = editor;
@@ -280,7 +267,7 @@ export function add_cell_of_shape(
   const width = options.width || 120;
   const height = options.height || 80;
   const text = options.text || "";
-  const style = options.style || "";
+  const style = (options.style || "") as CellStyle;
 
   // Find the General palette
   // const generalPalette = sidebar.palettes.find((p: any) =>
