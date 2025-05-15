@@ -20,8 +20,6 @@ There are the following options to install the Extension itself.
 
 ### Web Store
 
-**(Chrome still pending review)**
-
 <p>
   <a href="https://chrome.google.com/webstore/detail/drawio-mcp-extension/okdbbjbbccdhhfaefmcmekalmmdjjide">
     <picture>
