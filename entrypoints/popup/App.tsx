@@ -5,7 +5,8 @@ type ConnectionState = "connected" | "connecting" | "disconnected";
 
 function App() {
   const [connectionState, setConnectionState] = useState<ConnectionState>("disconnected");
-  
+  const [featuresExpanded, setFeaturesExpanded] = useState(false);
+
   useEffect(() => {
     // Request connection state from background script when popup opens
     browser.runtime.sendMessage({ type: "GET_CONNECTION_STATE" })
@@ -15,7 +16,7 @@ function App() {
         }
       })
       .catch(error => console.error("Error getting connection state:", error));
-    
+
     // Listen for connection state updates
     const listener = (message: any) => {
       if (message.type === "CONNECTION_STATE_UPDATE") {
@@ -23,22 +24,22 @@ function App() {
       }
       return true;
     };
-    
+
     browser.runtime.onMessage.addListener(listener);
-    
+
     return () => {
       browser.runtime.onMessage.removeListener(listener);
     };
   }, []);
-  
+
   // Get the appropriate logo based on connection state
   const logoSrc = `/logo_${connectionState}.svg`;
-  
+
   return (
     <>
       <div>
         <a href="https://github.com/lgazo/drawio-mcp-extension" target="_blank">
-          <img src={logoSrc} className="logo" alt="WXT logo" />
+          <img src={logoSrc} className="logo" alt="Draw.io MCP logo" />
         </a>
       </div>
       <h1>Draw.io MCP</h1>
@@ -52,26 +53,61 @@ function App() {
         </p>
         {connectionState !== "connected" && (
           <p>
-            {connectionState === "connecting" 
-              ? "Attempting to connect to the MCP server..." 
+            {connectionState === "connecting"
+              ? "Attempting to connect to the MCP server..."
               : "Not connected to the MCP server. The server may be offline."}
           </p>
         )}
       </div>
-      <div className="card align-left">
-        <h3>Supported Features:</h3>
-        <ul>
-          <li>Get selected cell</li>
-          <li>Add rectangle shape</li>
-          <li>Add connection line (edge)</li>
-          <li>Delete cell</li>
-          <li>Get shape categories</li>
-          <li>Add specific shape</li>
-        </ul>
-      </div>
 
       <div className="card">
+        <div className="button-container">
+          <button
+            onClick={() => {
+              browser.runtime.sendMessage({ type: "SEND_PING_TO_SERVER" })
+                .catch(error => console.error("Error sending ping:", error));
+            }}
+            disabled={connectionState !== "connected"}
+            className="ping-button"
+          >
+            Ping Server
+          </button>
+          
+          {connectionState === "disconnected" && (
+            <button
+              onClick={() => {
+                browser.runtime.sendMessage({ type: "RECONNECT_TO_SERVER" })
+                  .catch(error => console.error("Error reconnecting:", error));
+              }}
+              className="connect-button"
+            >
+              Connect
+            </button>
+          )}
+        </div>
+      </div>
+      
+      <div className="card">
         <p>Please open <a href="https://app.diagrams.net/" target="_blank">Draw.io</a> website to use MCP features</p>
+      </div>
+
+      <div className="card align-left features-section">
+        <h3 
+          className="features-heading" 
+          onClick={() => setFeaturesExpanded(!featuresExpanded)}
+        >
+          Supported Features: <span className={`expand-icon ${featuresExpanded ? 'expanded' : ''}`}>▶</span>
+        </h3>
+        {featuresExpanded && (
+          <ul className="features-list">
+            <li>Get selected cell</li>
+            <li>Add rectangle shape</li>
+            <li>Add connection line (edge)</li>
+            <li>Delete cell</li>
+            <li>Get shape categories</li>
+            <li>Add specific shape</li>
+          </ul>
+        )}
       </div>
     </>
   );

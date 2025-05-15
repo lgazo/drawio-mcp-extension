@@ -77,6 +77,51 @@
   background-color: #f44336; /* Red */
 }
 
+/* Button container */
+.button-container {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 1em;
+}
+
+/* Ping button styles */
+.ping-button {
+  padding: 0.5em 1em;
+  background-color: #4285f4;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.3s ease;
+}
+
+.ping-button:hover {
+  background-color: #3367d6;
+}
+
+.ping-button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+/* Connect button styles */
+.connect-button {
+  padding: 0.5em 1em;
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.3s ease;
+}
+
+.connect-button:hover {
+  background-color: #388e3c;
+}
+
 @keyframes pulse {
   0% {
     opacity: 1;
@@ -86,5 +131,46 @@
   }
   100% {
     opacity: 1;
+  }
+}
+
+/* Features section styles */
+.features-section {
+  margin-top: 1em;
+}
+
+.features-heading {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5em;
+  user-select: none;
+}
+
+.expand-icon {
+  font-size: 0.8em;
+  margin-left: 0.5em;
+  transition: transform 0.3s ease;
+}
+
+.expand-icon.expanded {
+  transform: rotate(90deg);
+}
+
+.features-list {
+  margin-top: 0.5em;
+  padding-left: 1.5em;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
