@@ -33,7 +33,7 @@ function App() {
   }, []);
 
   // Get the appropriate logo based on connection state
-  const logoSrc = `/logo_${connectionState}.svg`;
+  const logoSrc = `/icon/logo_${connectionState}_128.png`;
 
   return (
     <>
