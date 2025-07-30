@@ -15,5 +15,6 @@
 
 ## done
 
+* [x] Human readable extension name
 * [x] publish to web stores
 * [x] #13: MCP error -32001: Request timed out
