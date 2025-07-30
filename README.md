@@ -78,3 +78,13 @@ pnpm run zip:firefox
 [Contributing](./CONTRIBUTING.md)
 
 [Development](./DEVELOPMENT.md)
+
+## Star History
+
+<a href="https://star-history.com/#lgazo/drawio-mcp-extension&Date">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=lgazo/drawio-mcp-extension&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=lgazo/drawio-mcp-extension&type=Date" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=lgazo/drawio-mcp-extension&type=Date" />
+ </picture>
+</a>

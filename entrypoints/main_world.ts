@@ -30,7 +30,10 @@ export default defineUnlistedScript(() => {
           TOOL_get_selected_cell,
           ui,
           new Set([]),
-          (ui, _options) => graph.getSelectionCell() || "no cell selected"
+          (ui, _options) => {
+            const result = graph.getSelectionCell() || "no cell selected";
+            return result;
+          },
         );
 
         const TOOL_add_rectangle = "add-rectangle";
@@ -38,7 +41,7 @@ export default defineUnlistedScript(() => {
           TOOL_add_rectangle,
           ui,
           new Set(["x", "y", "width", "height", "text", "style"]),
-          add_new_rectangle
+          add_new_rectangle,
         );
 
         const TOOL_delete_cell_by_id = "delete-cell-by-id";
@@ -46,7 +49,7 @@ export default defineUnlistedScript(() => {
           TOOL_delete_cell_by_id,
           ui,
           new Set(["cell_id"]),
-          delete_cell_by_id
+          delete_cell_by_id,
         );
 
         const TOOL_add_edge = "add-edge";
@@ -54,7 +57,7 @@ export default defineUnlistedScript(() => {
           TOOL_add_edge,
           ui,
           new Set(["source_id", "target_id", "style", "text"]),
-          add_edge
+          add_edge,
         );
 
         const TOOL_get_shape_categories = "get-shape-categories";
@@ -62,7 +65,7 @@ export default defineUnlistedScript(() => {
           TOOL_get_shape_categories,
           ui,
           new Set([]),
-          get_shape_categories
+          get_shape_categories,
         );
 
         const TOOL_get_shapes_in_category = "get-shapes-in-category";
@@ -70,7 +73,7 @@ export default defineUnlistedScript(() => {
           TOOL_get_shapes_in_category,
           ui,
           new Set(["category_id"]),
-          get_shapes_in_category
+          get_shapes_in_category,
         );
 
         const TOOL_get_shape_by_name = "get-shape-by-name";
@@ -78,7 +81,7 @@ export default defineUnlistedScript(() => {
           TOOL_get_shape_by_name,
           ui,
           new Set(["shape_name"]),
-          get_shape_by_name
+          get_shape_by_name,
         );
 
         const TOOL_add_cell_of_shape = "add-cell-of-shape";
@@ -86,9 +89,8 @@ export default defineUnlistedScript(() => {
           TOOL_add_cell_of_shape,
           ui,
           new Set(["x", "y", "width", "height", "text", "style"]),
-          add_cell_of_shape
+          add_cell_of_shape,
         );
-
       });
     } else {
       const el = document.querySelector(

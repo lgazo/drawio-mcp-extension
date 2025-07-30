@@ -4,7 +4,8 @@ import { bus_reply_stream, bus_request_stream } from "@/types";
 function sendToWebSocket(data: any) {
   browser.runtime.sendMessage({
     type: "SEND_WS_MESSAGE",
-    data: data,
+    data: JSON.parse(data),
+    // data: data,
   });
 }
 
@@ -37,6 +38,12 @@ export default defineContentScript({
     window.addEventListener(bus_reply_stream, (message: any) => {
       console.log("[content] reply received", message);
       const reply = message.detail;
+      if (reply === undefined || reply === null) {
+        console.warn(
+          `[content] suspicious empty message detail received`,
+          message,
+        );
+      }
       sendToWebSocket(reply);
     });
   },
