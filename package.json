@@ -2,7 +2,7 @@
   "name": "drawio-mcp-extension",
   "description": "Draw.io MCP Extension providing services to Draw.io MCP Server",
   "private": true,
-  "version": "1.2.1",
+  "version": "1.2.2",
   "type": "module",
   "scripts": {
     "dev": "wxt",
