@@ -1,8 +1,38 @@
 import { shape_library_stub } from "./drawio_stub";
-import { DrawioCellOptions } from "./types";
+import {
+  DrawioCellOptions,
+  DrawioGraph,
+  MxGraphCell,
+  MxGraphIsLayer,
+} from "./types";
 
 export type CellId = string;
 export type CellStyle = string;
+
+export interface TransformedCell {
+  id: string;
+  mxObjectId: string;
+  value:
+    | string
+    | {
+        attributes?: any;
+        nodeName?: string;
+        localName?: string;
+        tagName?: string;
+      };
+  geometry?: any;
+  style?: CellStyle;
+  edge?: boolean;
+  edges?: any[];
+  parent?: any;
+  source?: any;
+  target?: any;
+  layer?: {
+    id: string;
+    name: string;
+  };
+  tags?: string[];
+}
 
 export function add_new_rectangle(
   ui: any,
@@ -58,7 +88,7 @@ export function add_new_rectangle(
  */
 export function delete_cell_by_id(
   ui: any,
-  options: DrawioCellOptions
+  options: DrawioCellOptions,
 ): boolean {
   const { editor } = ui;
   const { graph } = editor;
@@ -89,10 +119,7 @@ export function delete_cell_by_id(
  * @param options Parameters including style
  * @returns The created edge or null if vertices weren't found
  */
-export function add_edge(
-  ui: any,
-  options: DrawioCellOptions,
-): any | null {
+export function add_edge(ui: any, options: DrawioCellOptions): any | null {
   const { editor } = ui;
   const { graph } = editor;
   const model = graph.getModel();
@@ -165,10 +192,7 @@ export function get_shape_categories(ui: any) {
  * @param category_name The name of the category to list
  * @returns Array of shape names in the category or empty array if not found
  */
-export function get_shapes_in_category(
-  ui: any,
-  options: DrawioCellOptions,
-) {
+export function get_shapes_in_category(ui: any, options: DrawioCellOptions) {
   //: string[] {
   // const { sidebar } = ui;
 
@@ -205,7 +229,6 @@ export function get_shape_by_name(
   ui: any,
   options: DrawioCellOptions,
 ): any | null {
-
   // const shape_name = options.shape_name as string;
   // const lowerCaseName = shape_name.toLowerCase();
 
@@ -253,10 +276,7 @@ export function get_shape_by_name(
  * @param options Position, size and style options
  * @returns The created cell or null if shape not found
  */
-export function add_cell_of_shape(
-  ui: any,
-  options: DrawioCellOptions,
-) {
+export function add_cell_of_shape(ui: any, options: DrawioCellOptions) {
   const { editor } = ui;
   const { graph, sidebar } = editor;
 
@@ -354,8 +374,32 @@ export function remove_circular_dependencies<T>(
     if (Object.prototype.hasOwnProperty.call(obj, key)) {
       const value = (obj as Record<string, any>)[key];
       // Skip functions
-      if (typeof value !== "function") {
-        result[key] = remove_circular_dependencies(value, visited, [
+      if (
+        typeof value !== "function" &&
+        key !== "children" &&
+        key !== "edges"
+      ) {
+        let stripped_value = {};
+        if (
+          (key === "parent" || key === "source" || key === "target") &&
+          value !== undefined &&
+          value !== null
+        ) {
+          // Object.assign(
+          //   stripped_value,
+          //   ...Object.entries(value)
+          //     .filter(
+          //       ([k, v]) => k !== "parent" && k !== "children" && k !== "edges",
+          //     )
+          //     .map(([k, v]) => ({ [k]: v })),
+          // );
+          stripped_value = {
+            id: value.id,
+          };
+        } else {
+          stripped_value = value;
+        }
+        result[key] = remove_circular_dependencies(stripped_value, visited, [
           ...path,
           key,
         ]);
@@ -364,4 +408,336 @@ export function remove_circular_dependencies<T>(
   }
 
   return result as T;
+}
+
+function transform_NamedNodeMap_to_attributes(cell: any) {
+  // Transform NamedNodeMap attributes to standard object
+  let transformed_attributes: Record<string, any> = {};
+  if (cell.value.attributes && typeof cell.value.attributes === "object") {
+    const attributes = cell.value.attributes;
+    if (attributes.length !== undefined) {
+      // Handle NamedNodeMap (has length property)
+      for (let i = 0; i < attributes.length; i++) {
+        const attr = attributes[i];
+        if (attr && attr.name && attr.value !== undefined) {
+          transformed_attributes[attr.name] = attr.value;
+        }
+      }
+    } else {
+      // Handle regular object attributes
+      transformed_attributes = attributes;
+    }
+  }
+
+  return transformed_attributes;
+}
+
+/**
+ * Transforms a cell object to retain only essential fields and sanitize data
+ * @param cell The cell object to transform
+ * @returns Transformed cell with only essential fields
+ */
+export function transform_cell_for_display(
+  cell: MxGraphCell,
+): TransformedCell | null {
+  if (!cell || typeof cell !== "object") {
+    return null;
+  }
+
+  const transformed: TransformedCell = {
+    id: cell.id || "",
+    mxObjectId: cell.mxObjectId || "",
+    value: "",
+    geometry: cell.geometry,
+    style: cell.style,
+    edge: cell.edge,
+    edges: cell.edges,
+    parent: cell.parent,
+    source: cell.source,
+    target: cell.target,
+  };
+
+  // Handle value field transformation
+  if (cell.value !== null && cell.value !== undefined) {
+    if (typeof cell.value === "string") {
+      transformed.value = cell.value;
+    } else if (typeof cell.value === "object") {
+      const transformed_attributes = transform_NamedNodeMap_to_attributes(cell);
+
+      transformed.value = {
+        attributes: transformed_attributes,
+        nodeName: cell.value.nodeName,
+        localName: cell.value.localName,
+        tagName: cell.value.tagName,
+      };
+    }
+  }
+
+  return transformed;
+}
+
+/**
+ * Gets the layer information for a given cell
+ * @param graph The graph instance
+ * @param cell The cell to get layer information for
+ * @returns Layer object with id and name, or null if no layer found
+ */
+export function get_cell_layer(
+  graph: DrawioGraph,
+  cell: any,
+): { id: string; name: string } | null {
+  if (!cell || !graph) {
+    return null;
+  }
+
+  try {
+    const layer = graph.getLayerForCell(cell);
+    if (layer) {
+      return {
+        id: layer.id || "",
+        name: layer.value || "Default Layer",
+      };
+    }
+  } catch (error) {
+    // Handle cases where getLayerForCell might not be available
+    console.warn("Could not get layer for cell:", error);
+  }
+
+  return null;
+}
+
+/**
+ * Reimplementation of draw.io's
+ * @param root_cell
+ * @returns
+ */
+function mx_isRoot(root_cell: MxGraphCell) {
+  return function (cell: MxGraphCell): boolean {
+    // return null != a && this.root == a
+    return null != cell && cell == root_cell;
+  };
+}
+
+function mx_isLayer(root_cell: MxGraphCell) {
+  return function (cell: MxGraphCell): boolean {
+    // return this.isRoot(this.getParent(a))
+    return mx_isRoot(root_cell)(cell.getParent());
+  };
+}
+
+/**
+ * Lists paged model data from the graph with transformation and sanitization
+ * @param ui The draw.io UI instance
+ * @param options Page information and filtering options
+ * @returns Array of transformed and sanitized cells
+ */
+export function list_paged_model(
+  ui: any,
+  options: {
+    page?: number;
+    page_size?: number;
+    filter?: {
+      cell_type?: "edge" | "node" | "object" | "layer";
+      attributes?: any[];
+    };
+  } = {},
+): TransformedCell[] {
+  const { editor } = ui;
+  const { graph } = editor;
+  const model = graph.getModel();
+  const cells = model.cells;
+
+  if (!cells) {
+    return [];
+  }
+
+  // Helper function to parse style string into key=value pairs
+  function parse_style_attributes(style: string): Record<string, string> {
+    const attributes: Record<string, string> = {};
+    if (!style) return attributes;
+
+    const pairs = style.split(";");
+    for (const pair of pairs) {
+      const [key, ...valueParts] = pair.split("=");
+      if (key && valueParts.length > 0) {
+        attributes[key.trim()] = valueParts.join("=").trim();
+      }
+    }
+    return attributes;
+  }
+
+  // Helper function to extract attributes from cell value
+  function extract_cell_attributes(cell: any): Record<string, any> {
+    const attributes: Record<string, any> = {};
+
+    // Add basic cell properties
+    attributes.id = cell.id || "";
+    attributes.edge = cell.edge || false;
+
+    // Add style attributes
+    if (cell.style) {
+      Object.assign(attributes, parse_style_attributes(cell.style));
+    }
+
+    // Add value attributes if it's an object
+    if (cell.value && typeof cell.value === "object" && cell.value.attributes) {
+      const transformed_attributes = transform_NamedNodeMap_to_attributes(cell);
+
+      // const valueAttrs = cell.value.attributes;
+      // if (Array.isArray(valueAttrs)) {
+      //   for (let i = 0; i < valueAttrs.length; i++) {
+      //     const attr = valueAttrs[i];
+      //     if (attr && attr.name && attr.value !== undefined) {
+      //       attributes[attr.name] = attr.value;
+      //     }
+      //   }
+      // } else if (typeof valueAttrs === "object") {
+      //   Object.assign(attributes, valueAttrs);
+      // }
+
+      Object.assign(attributes, transformed_attributes);
+    }
+
+    // Add text value as attribute
+    if (cell.value && typeof cell.value === "string") {
+      attributes.text = cell.value;
+    }
+
+    return attributes;
+  }
+
+  // Helper function to evaluate boolean logic expressions
+  function evaluate_filter_expression(
+    expression: any[],
+    attributes: Record<string, any>,
+  ): boolean {
+    if (!Array.isArray(expression) || expression.length === 0) {
+      return true;
+    }
+
+    const [operator, ...operands] = expression;
+
+    switch (operator) {
+      case "and":
+        return operands.every((op) =>
+          evaluate_filter_expression(op, attributes),
+        );
+
+      case "or":
+        return operands.some((op) =>
+          evaluate_filter_expression(op, attributes),
+        );
+
+      case "equal":
+        if (operands.length !== 2) return false;
+        const [key, value] = operands;
+        return attributes[key] === value;
+
+      default:
+        return true;
+    }
+  }
+
+  // Helper function to check cell type
+  function matches_cell_type(
+    cell: any,
+    cell_type: string,
+    isLayer: MxGraphIsLayer,
+  ): boolean {
+    switch (cell_type) {
+      case "edge":
+        return cell.edge === true || cell.edge === 1;
+      case "vertex":
+        return cell.edge === false;
+      case "object":
+        return cell.value?.nodeName === "object";
+      case "group":
+        return cell.style === "group";
+      case "layer":
+        return isLayer(cell);
+      default:
+        return true;
+    }
+  }
+
+  // Apply filtering
+  let filtered_cells = Object.values(cells);
+
+  if (options.filter) {
+    filtered_cells = filtered_cells.filter((cell) => {
+      // Check cell type filter
+      if (
+        options.filter?.cell_type &&
+        !matches_cell_type(
+          cell,
+          options.filter.cell_type,
+          mx_isLayer(model.root),
+        )
+      ) {
+        return false;
+      }
+
+      // Check attributes filter
+      if (options.filter?.attributes && options.filter.attributes.length > 0) {
+        const cellAttributes = extract_cell_attributes(cell);
+        if (
+          !evaluate_filter_expression(options.filter.attributes, cellAttributes)
+        ) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }
+
+  // Default pagination values
+  const page = Math.max(0, options.page || 0);
+  const page_size = Math.max(1, options.page_size || 50);
+  const start_index = page * page_size;
+
+  // Get filtered cell IDs and slice for pagination
+  const cell_ids = filtered_cells.map((cell) => cell.id);
+  const paginated_ids = cell_ids.slice(start_index, start_index + page_size);
+
+  // Transform and sanitize each cell
+  const transformed_cells: TransformedCell[] = [];
+
+  for (const cell_id of paginated_ids) {
+    const cell = cells[cell_id];
+    if (cell) {
+      // Remove circular dependencies and transform
+      const sanitized_cell = remove_circular_dependencies(cell);
+      const transformed_cell = transform_cell_for_display(sanitized_cell);
+
+      if (transformed_cell) {
+        const layer_info = get_cell_layer(graph, cell);
+        if (layer_info) {
+          transformed_cell.layer = layer_info;
+        }
+
+        const tags_info = get_cell_tags(graph, cell);
+        if (tags_info && tags_info.length > 0) {
+          transformed_cell.tags = tags_info;
+        }
+        transformed_cells.push(transformed_cell);
+      }
+    }
+  }
+
+  return transformed_cells;
+}
+
+export function get_cell_tags(graph: any, cell: any): string[] {
+  if (!cell || !graph) {
+    return [];
+  }
+
+  try {
+    const tags = graph.getTagsForCell(cell);
+    return tags || [];
+  } catch (error) {
+    console.warn("Could not get tags for cell:", error);
+    return [];
+  }
 }

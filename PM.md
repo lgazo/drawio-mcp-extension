@@ -2,10 +2,11 @@
 
 ## in progress
 
+* [x] tools to retrieve diagram data
 
 ## todo
 
-* [ ] tools to retrieve diagram data
+* [ ] show whether the extension is active on the tab
 * [ ] crop icons so the picutre fills majority of the sapce
 * [ ] #10: add basic set of Google Cloud shapes
 * [ ] #11: move ws comm to content script
@@ -18,3 +19,4 @@
 * [x] Human readable extension name
 * [x] publish to web stores
 * [x] #13: MCP error -32001: Request timed out
+* [x] #12: Maximum length for conversation

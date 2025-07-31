@@ -5,9 +5,10 @@ export default defineBackground(() => {
   let reconnectAttempts = 0;
   const maxReconnectAttempts = 5;
   const reconnectDelay = 3000; // 3 seconds
-  
+
   // Track current connection state
-  let currentConnectionState: "connected" | "connecting" | "disconnected" = "disconnected";
+  let currentConnectionState: "connected" | "connecting" | "disconnected" =
+    "disconnected";
 
   // Set initial icon state
   setExtensionIcon("disconnected");
@@ -18,7 +19,7 @@ export default defineBackground(() => {
   ) {
     // Update current connection state
     currentConnectionState = state;
-    
+
     const iconSizes = [16, 32, 48, 128];
     const iconPaths = iconSizes.reduce(
       (acc, size) => ({
@@ -28,16 +29,20 @@ export default defineBackground(() => {
       {},
     );
 
-    const browserAction = browser.browserAction ? browser.browserAction : browser.action;
+    const browserAction = browser.browserAction
+      ? browser.browserAction
+      : browser.action;
     browserAction.setIcon({ path: iconPaths });
-    
+
     // Broadcast connection state update to any open popups
-    browser.runtime.sendMessage({ 
-      type: "CONNECTION_STATE_UPDATE", 
-      state: currentConnectionState 
-    }).catch(() => {
-      // Ignore errors (no popup listening)
-    });
+    browser.runtime
+      .sendMessage({
+        type: "CONNECTION_STATE_UPDATE",
+        state: currentConnectionState,
+      })
+      .catch(() => {
+        // Ignore errors (no popup listening)
+      });
   }
 
   // Function to establish WebSocket connection
@@ -108,7 +113,7 @@ export default defineBackground(() => {
     }
   }
 
-    // Handle messages from content scripts and popup
+  // Handle messages from content scripts and popup
   browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // Handle messages from content scripts
     if (
@@ -122,39 +127,44 @@ export default defineBackground(() => {
       });
       socket.send(ser);
     }
-    
+
     // Handle connection state request from popup
     if (message.type === "GET_CONNECTION_STATE") {
       console.debug("[background] Connection state requested by popup");
       sendResponse({ state: currentConnectionState });
     }
-    
+
     // Handle ping request from popup
-    if (message.type === "SEND_PING_TO_SERVER" && socket?.readyState === WebSocket.OPEN) {
+    if (
+      message.type === "SEND_PING_TO_SERVER" &&
+      socket?.readyState === WebSocket.OPEN
+    ) {
       console.debug("[background] Ping requested by popup");
-      socket.send(JSON.stringify({ type: "PING", message: "Ping from extension popup" }));
+      socket.send(
+        JSON.stringify({ type: "PING", message: "Ping from extension popup" }),
+      );
       sendResponse({ success: true });
     }
-    
+
     // Handle reconnect request from popup
     if (message.type === "RECONNECT_TO_SERVER") {
       console.debug("[background] Reconnection requested by popup");
-      
+
       // Close existing socket if it exists
       if (socket) {
         socket.close();
         socket = null;
       }
-      
+
       // Reset reconnect attempts to start fresh
       reconnectAttempts = 0;
-      
+
       // Initiate connection
       connect();
-      
+
       sendResponse({ success: true });
     }
-    
+
     return true; // Keep the message channel open for async response
   });
 
@@ -166,7 +176,9 @@ export default defineBackground(() => {
     if (socket?.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify({ type: "PING" }));
     } else {
-      console.debug(`[background] keep alive skipped for state ${socket?.readyState}`);
+      console.debug(
+        `[background] keep alive skipped for state ${socket?.readyState}`,
+      );
     }
   }, 30000); // Every 30 seconds
 

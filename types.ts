@@ -18,12 +18,15 @@ export type OnStandardToolRequestFromServer = (
   event_name: string,
   ui: DrawioUI,
   accepted_option_keys: Set<OptionKey>,
-  drawio_function: DrawIOFunction
+  drawio_function: DrawIOFunction,
 ) => void;
 
 export type DrawioCellOptions = Record<OptionKey, unknown>;
 
-export type DrawIOFunction = (ui: DrawioUI, options: DrawioCellOptions) => unknown;
+export type DrawIOFunction = (
+  ui: DrawioUI,
+  options: DrawioCellOptions,
+) => unknown;
 
 /**
  * Draw.io API type definitions
@@ -31,6 +34,7 @@ export type DrawIOFunction = (ui: DrawioUI, options: DrawioCellOptions) => unkno
 
 // Graph interface for the editor's graph property
 export interface DrawioGraph {
+  getLayerForCell(cell: MxGraphCell): MxGraphCell;
   getSelectionCell: () => any;
   // Add other graph methods as needed
 }
@@ -50,6 +54,9 @@ export interface DrawioUI {
 export interface Draw {
   loadPlugin: (callback: (ui: DrawioUI) => void) => void;
 }
+
+export type MxGraphCell = any;
+export type MxGraphIsLayer = (cell: MxGraphCell) => boolean;
 
 // Extend the Window interface to include the Draw property
 declare global {

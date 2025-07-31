@@ -4,8 +4,7 @@ import { bus_reply_stream, bus_request_stream } from "@/types";
 function sendToWebSocket(data: any) {
   browser.runtime.sendMessage({
     type: "SEND_WS_MESSAGE",
-    data: JSON.parse(data),
-    // data: data,
+    data: data,
   });
 }
 

@@ -11,11 +11,7 @@ import {
 
 export const send_reply_to_server: SendReplyToServer = (reply: any) => {
   console.debug(`[bus] sending reply`, reply);
-  const final_reply = JSON.stringify(reply);
-  // const final_reply = reply;
-  window.dispatchEvent(
-    new CustomEvent(bus_reply_stream, { detail: final_reply }),
-  );
+  window.dispatchEvent(new CustomEvent(bus_reply_stream, { detail: reply }));
 };
 
 export const on_request_from_server: OnRequestFromServer = (
@@ -24,9 +20,13 @@ export const on_request_from_server: OnRequestFromServer = (
 ) => {
   console.debug(`[bus] registered ${event_name}`);
   const listener = (emitter_data: any) => {
-    console.debug(`[bus] received ${event_name}`, emitter_data);
+    // console.debug(`[bus] received from server, expecting ${event_name}`, emitter_data);
     const event = emitter_data.detail;
     if (event.__event === event_name) {
+      console.debug(
+        `[bus] received from server, matched ${event_name}`,
+        emitter_data,
+      );
       request_listener(event);
     }
   };
@@ -55,6 +55,10 @@ export const on_standard_tool_request_from_server: OnStandardToolRequestFromServ
           result: remove_circular_dependencies(result),
         };
       } catch (e) {
+        console.error(
+          `[bus] failed executing standard tool ${event_name} with request ID = ${request.__request_id}. Returning success=false to the server.`,
+          e,
+        );
         reply = {
           __event: reply_name(event_name, request.__request_id),
           __request_id: request.__request_id,
