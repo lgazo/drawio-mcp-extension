@@ -6,6 +6,7 @@ import {
   get_shape_by_name,
   get_shape_categories,
   get_shapes_in_category,
+  list_paged_model,
 } from "@/drawio";
 import { on_standard_tool_request_from_server } from "../bus";
 import { DrawioUI } from "../types";
@@ -90,6 +91,14 @@ export default defineUnlistedScript(() => {
           ui,
           new Set(["x", "y", "width", "height", "text", "style"]),
           add_cell_of_shape,
+        );
+
+        const TOOL_list_paged_model = "list-paged-model";
+        on_standard_tool_request_from_server(
+          TOOL_list_paged_model,
+          ui,
+          new Set(["page", "page_size", "filter"]),
+          list_paged_model,
         );
       });
     } else {
