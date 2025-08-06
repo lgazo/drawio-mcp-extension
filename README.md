@@ -71,6 +71,28 @@ or
 pnpm run zip:firefox
 ```
 
+## Sponsoring
+
+If you enjoy the project or find it useful, consider supporting its continued development.
+
+
+lightning invoice:
+
+![lightning invoice](./lightning_qr.png)
+
+```
+lnbc1p5f8wvnpp5kk0qt60waplesw3sjxu7tcqwmdp6ysq570dc4ln52krd3u5nzq6sdp82pshjgr5dusyymrfde4jq4mpd3kx2apq24ek2uscqzpuxqr8pqsp5gvr72xcs883qt4hea6v3u7803stcwfnk5c9w0ykqr9a40qqwnpys9qxpqysgqfzlhm0cz5vqy7wqt7rwpmkacukrk59k89ltd5n642wzru2jn88tyd78gr4y3j6u64k2u4sd4qgavlsnccl986velrg3x0pe95sx7p4sqtatttp
+```
+
+lightning address:
+```
+ladislav@blink.sv
+```
+
+<div align="center">
+<a href="https://liberapay.com/ladislav/donate"><img alt="Donate using Liberapay" src="https://liberapay.com/assets/widgets/donate.svg"></a>
+</div>
+
 ## Related Resources
 
 [Troubleshooting](./TROUBLESHOOTING.md)
