@@ -158,6 +158,126 @@ export function add_edge(ui: any, options: DrawioCellOptions): any | null {
 }
 
 /**
+ * Updates an existing vertex/shape cell by applying only the provided changes.
+ * @param ui The draw.io UI instance
+ * @param options Parameters describing the desired updates
+ * @returns The updated cell
+ */
+export function edit_cell(ui: any, options: DrawioCellOptions): any {
+  const { editor } = ui;
+  const { graph } = editor;
+  const model = graph.getModel();
+
+  const cell_id = options.cell_id as CellId;
+  if (!cell_id) {
+    throw new Error("edit_cell requires a cell_id");
+  }
+
+  const cell = model.getCell(cell_id);
+  if (!cell) {
+    throw new Error(`edit_cell could not find cell with id '${cell_id}'`);
+  }
+
+  model.beginUpdate();
+  try {
+    const has_position_change =
+      options.x !== undefined || options.y !== undefined;
+    const has_size_change =
+      options.width !== undefined || options.height !== undefined;
+
+    if (has_position_change || has_size_change) {
+      const geometry = cell.geometry ? cell.geometry.clone() : null;
+      if (!geometry) {
+        throw new Error(
+          `Cell '${cell_id}' does not support geometry updates (missing geometry)`,
+        );
+      }
+
+      if (options.x !== undefined) geometry.x = options.x as number;
+      if (options.y !== undefined) geometry.y = options.y as number;
+      if (options.width !== undefined) geometry.width = options.width as number;
+      if (options.height !== undefined)
+        geometry.height = options.height as number;
+
+      model.setGeometry(cell, geometry);
+    }
+
+    if (options.text !== undefined) {
+      graph.cellLabelChanged(cell, options.text, false);
+    }
+
+    if (options.style !== undefined) {
+      graph.setCellStyle(options.style as CellStyle, [cell]);
+    }
+  } finally {
+    model.endUpdate();
+  }
+
+  return cell;
+}
+
+/**
+ * Updates an existing edge cell by applying only the provided changes.
+ * @param ui The draw.io UI instance
+ * @param options Parameters describing the desired updates
+ * @returns The updated edge cell
+ */
+export function edit_edge(ui: any, options: DrawioCellOptions): any {
+  const { editor } = ui;
+  const { graph } = editor;
+  const model = graph.getModel();
+
+  const cell_id = options.cell_id as CellId;
+  if (!cell_id) {
+    throw new Error("edit_edge requires a cell_id");
+  }
+
+  const edge = model.getCell(cell_id);
+  if (!edge) {
+    throw new Error(`edit_edge could not find edge with id '${cell_id}'`);
+  }
+
+  if (!edge.edge) {
+    throw new Error(`Cell '${cell_id}' is not an edge`);
+  }
+
+  model.beginUpdate();
+  try {
+    if (options.source_id !== undefined) {
+      const newSource = model.getCell(options.source_id as CellId);
+      if (!newSource) {
+        throw new Error(
+          `edit_edge could not find source cell '${options.source_id}'`,
+        );
+      }
+      model.setTerminal(edge, newSource, true);
+    }
+
+    if (options.target_id !== undefined) {
+      const newTarget = model.getCell(options.target_id as CellId);
+      if (!newTarget) {
+        throw new Error(
+          `edit_edge could not find target cell '${options.target_id}'`,
+        );
+      }
+      model.setTerminal(edge, newTarget, false);
+    }
+
+    if (options.text !== undefined) {
+      graph.cellLabelChanged(edge, options.text, false);
+    }
+
+    if (options.style !== undefined) {
+      graph.setCellStyle(options.style as CellStyle, [edge]);
+    }
+  } finally {
+    model.endUpdate();
+  }
+
+  return edge;
+}
+
+/**
  * Lists all available shape categories (palettes) in the sidebar
  * @param ui The draw.io UI instance
  * @returns Array of category names
@@ -325,6 +445,52 @@ export function add_cell_of_shape(ui: any, options: DrawioCellOptions) {
     // End transaction
     graph.getModel().endUpdate();
   }
+}
+
+/**
+ * Applies a library shape's style to an existing cell.
+ * @param ui The draw.io UI instance
+ * @param options Includes target cell_id and shape_name to apply
+ * @returns The updated cell
+ */
+export function set_cell_shape(ui: any, options: DrawioCellOptions) {
+  const { editor } = ui;
+  const { graph } = editor;
+  const model = graph.getModel();
+
+  const cell_id = options.cell_id as CellId;
+  const shape_name = options.shape_name as string;
+
+  if (!cell_id) {
+    throw new Error("set_cell_shape requires a cell_id");
+  }
+  if (!shape_name) {
+    throw new Error("set_cell_shape requires a shape_name");
+  }
+
+  const cell = model.getCell(cell_id);
+  if (!cell) {
+    throw new Error(`set_cell_shape could not find cell with id '${cell_id}'`);
+  }
+  if (cell.edge) {
+    throw new Error(`Cell '${cell_id}' is an edge; set_cell_shape expects a vertex`);
+  }
+
+  const shape_entry = get_shape_by_name(ui, { shape_name });
+  if (!shape_entry || !shape_entry.style) {
+    throw new Error(
+      `set_cell_shape could not find a shape named '${shape_name}' with a style`,
+    );
+  }
+
+  model.beginUpdate();
+  try {
+    graph.setCellStyle(shape_entry.style as CellStyle, [cell]);
+  } finally {
+    model.endUpdate();
+  }
+
+  return cell;
 }
 
 /**

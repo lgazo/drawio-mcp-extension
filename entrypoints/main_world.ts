@@ -3,6 +3,9 @@ import {
   add_edge,
   add_new_rectangle,
   delete_cell_by_id,
+  edit_cell,
+  edit_edge,
+  set_cell_shape,
   get_shape_by_name,
   get_shape_categories,
   get_shapes_in_category,
@@ -93,12 +96,36 @@ export default defineUnlistedScript(() => {
           add_cell_of_shape,
         );
 
+        const TOOL_set_cell_shape = "set-cell-shape";
+        on_standard_tool_request_from_server(
+          TOOL_set_cell_shape,
+          ui,
+          new Set(["cell_id", "shape_name"]),
+          set_cell_shape,
+        );
+
         const TOOL_list_paged_model = "list-paged-model";
         on_standard_tool_request_from_server(
           TOOL_list_paged_model,
           ui,
           new Set(["page", "page_size", "filter"]),
           list_paged_model,
+        );
+
+        const TOOL_edit_cell = "edit-cell";
+        on_standard_tool_request_from_server(
+          TOOL_edit_cell,
+          ui,
+          new Set(["cell_id", "text", "x", "y", "width", "height", "style"]),
+          edit_cell,
+        );
+
+        const TOOL_edit_edge = "edit-edge";
+        on_standard_tool_request_from_server(
+          TOOL_edit_edge,
+          ui,
+          new Set(["cell_id", "text", "source_id", "target_id", "style"]),
+          edit_edge,
         );
       });
     } else {
