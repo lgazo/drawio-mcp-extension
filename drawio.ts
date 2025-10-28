@@ -13,13 +13,13 @@ export interface TransformedCell {
   id: string;
   mxObjectId: string;
   value:
-    | string
-    | {
-        attributes?: any;
-        nodeName?: string;
-        localName?: string;
-        tagName?: string;
-      };
+  | string
+  | {
+    attributes?: any;
+    nodeName?: string;
+    localName?: string;
+    tagName?: string;
+  };
   geometry?: any;
   style?: CellStyle;
   edge?: boolean;
@@ -494,6 +494,61 @@ export function set_cell_shape(ui: any, options: DrawioCellOptions) {
 }
 
 /**
+ * Sets or updates a custom key-value pair on a cell's data.
+ * @param ui The draw.io UI instance
+ * @param options Includes cell_id, key, and value to store
+ * @returns The updated cell
+ */
+export const set_cell_data = (mxUtils: any) => (ui: any, options: DrawioCellOptions) => {
+  // console.debug(`[set-cell-data] options = `, options);
+  const { editor } = ui;
+  const { graph } = editor;
+  const model = graph.getModel();
+
+  const cell_id = options.cell_id as CellId;
+  const key = options.key as string;
+  const value = options.value;
+
+  if (!cell_id) {
+    throw new Error("set_cell_data requires a cell_id");
+  }
+  if (!key) {
+    throw new Error("set_cell_data requires a key");
+  }
+  if (value === undefined) {
+    throw new Error("set_cell_data requires a value");
+  }
+
+  const cell = model.getCell(cell_id);
+  if (!cell) {
+    throw new Error(`set_cell_data could not find cell with id '${cell_id}'`);
+  }
+
+  // console.debug(`[set-cell-data] cell = ${cell_id}, ${key}=${value}`);
+
+  model.beginUpdate();
+  try {
+    let d = graph.getModel().getValue(cell);
+    if (!mxUtils.isNode(d)) {
+      var h = mxUtils.createXmlDocument().createElement("object");
+      h.setAttribute("label", d || "");
+      d = h;
+    }
+
+    d = d.cloneNode(!0);
+    d.setAttribute(key, value);
+    graph.getModel().setValue(cell, d);
+
+  } catch (e) {
+    console.error(`[set-cell-data] error`, e);
+  } finally {
+    model.endUpdate();
+  }
+
+  return cell;
+}
+
+/**
  * Removes circular dependencies and functions from a JavaScript object by replacing
  * circular references with a string indicating the circular path and omitting functions.
  * @param obj The object to remove circular references and functions from
@@ -524,9 +579,15 @@ export function remove_circular_dependencies<T>(
   }
 
   // Handle Date, RegExp, etc. - return as-is since they can't contain circular references or functions
-  if (Object.prototype.toString.call(obj) !== "[object Object]") {
+  const tstr = Object.prototype.toString.call(obj);
+  // console.debug(`[remove] special type ${tstr}`)
+  if (tstr === "[object NamedNodeMap]") {
+    return transform_NamedNodeMap_to_record(obj) as T;
+  }
+  if (tstr !== "[object Object]" && tstr !== "[object Element]") {
     return obj;
   }
+
 
   // Check for circular reference in plain objects
   if (visited.has(obj)) {
@@ -536,66 +597,130 @@ export function remove_circular_dependencies<T>(
   visited.add(obj);
   const result: Record<string, any> = {};
 
+  // console.debug(`[remove] cleaned obj`, cleaned_obj);
   for (const key in obj) {
-    if (Object.prototype.hasOwnProperty.call(obj, key)) {
-      const value = (obj as Record<string, any>)[key];
-      // Skip functions
+    const value = (obj as Record<string, any>)[key];
+    // console.debug(`[remove] cleaning obj key=${key}`, value);
+    // Skip functions
+    if (
+      typeof value !== "function" &&
+      key !== "children" &&
+      key !== "edges" &&
+      !key.startsWith("aria") &&
+      key !== "ownerDocument" &&
+      key !== "part" &&
+      key !== "classList" &&
+      key !== "childNodes" &&
+      key !== "shadowRoot" &&
+      key !== "innerHTML" &&
+      key !== "outerHTML" &&
+      key !== "scrollTop" &&
+      key !== "scrollLeft" &&
+      key !== "scrollWidth" &&
+      key !== "scrollHeight" &&
+      key !== "clientTop" &&
+      key !== "clientLeft" &&
+      key !== "clientWidth" &&
+      key !== "clientHeight" &&
+      key !== "onbeforecopy" &&
+      key !== "onbeforecut" &&
+      key !== "onbeforepaste" &&
+      key !== "onsearch" &&
+      key !== "elementTiming" &&
+      key !== "onfullscreenchange" &&
+      key !== "onfullscreenerror" &&
+      key !== "onwebkitfullscreenchange" &&
+      key !== "onwebkitfullscreenerror" &&
+      key !== "firstElementChild" &&
+      key !== "lastElementChild" &&
+      key !== "childElementCount" &&
+      key !== "previousElementSibling" &&
+      key !== "nextElementSibling" &&
+      key !== "currentCSSZoom" &&
+      key !== "parentNode" &&
+      key !== "parentElement" &&
+      key !== "firstChild" &&
+      key !== "lastChild" &&
+      key !== "previousSibling" &&
+      key !== "nextSibling" &&
+      key !== "nodeValue" &&
+      key !== "textContent" &&
+      key !== "ELEMENT_NODE" &&
+      key !== "ATTRIBUTE_NODE" &&
+      key !== "TEXT_NODE" &&
+      key !== "CDATA_SECTION_NODE" &&
+      key !== "ENTITY_REFERENCE_NODE" &&
+      key !== "ENTITY_NODE" &&
+      key !== "PROCESSING_INSTRUCTION_NODE" &&
+      key !== "COMMENT_NODE" &&
+      key !== "DOCUMENT_NODE" &&
+      key !== "DOCUMENT_TYPE_NODE" &&
+      key !== "DOCUMENT_FRAGMENT_NODE" &&
+      key !== "NOTATION_NODE" &&
+      key !== "DOCUMENT_POSITION_DISCONNECTED" &&
+      key !== "DOCUMENT_POSITION_PRECEDING" &&
+      key !== "DOCUMENT_POSITION_FOLLOWING" &&
+      key !== "DOCUMENT_POSITION_CONTAINS" &&
+      key !== "DOCUMENT_POSITION_CONTAINED_BY" &&
+      key !== "DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC"
+
+    ) {
+      let stripped_value = {};
+
       if (
-        typeof value !== "function" &&
-        key !== "children" &&
-        key !== "edges"
+        (
+          key === "parent"
+          || key === "source"
+          || key === "target"
+        ) &&
+        value !== undefined &&
+        value !== null
       ) {
-        let stripped_value = {};
-        if (
-          (key === "parent" || key === "source" || key === "target") &&
-          value !== undefined &&
-          value !== null
-        ) {
-          // Object.assign(
-          //   stripped_value,
-          //   ...Object.entries(value)
-          //     .filter(
-          //       ([k, v]) => k !== "parent" && k !== "children" && k !== "edges",
-          //     )
-          //     .map(([k, v]) => ({ [k]: v })),
-          // );
-          stripped_value = {
-            id: value.id,
-          };
-        } else {
-          stripped_value = value;
-        }
-        result[key] = remove_circular_dependencies(stripped_value, visited, [
-          ...path,
-          key,
-        ]);
+        stripped_value = {
+          id: value.id,
+        };
+      } else {
+        stripped_value = value;
       }
+      result[key] = remove_circular_dependencies(stripped_value, visited, [
+        ...path,
+        key,
+      ]);
     }
   }
 
+  // console.debug(`[remove] result`, result);
   return result as T;
 }
 
-function transform_NamedNodeMap_to_attributes(cell: any) {
-  // Transform NamedNodeMap attributes to standard object
-  let transformed_attributes: Record<string, any> = {};
-  if (cell.value.attributes && typeof cell.value.attributes === "object") {
-    const attributes = cell.value.attributes;
-    if (attributes.length !== undefined) {
-      // Handle NamedNodeMap (has length property)
-      for (let i = 0; i < attributes.length; i++) {
-        const attr = attributes[i];
-        if (attr && attr.name && attr.value !== undefined) {
-          transformed_attributes[attr.name] = attr.value;
-        }
-      }
-    } else {
-      // Handle regular object attributes
-      transformed_attributes = attributes;
-    }
+function transform_NamedNodeMap_to_record(attributes: any) {
+  const tstr = Object.prototype.toString.call(attributes);
+  if (tstr !== "[object NamedNodeMap]") {
+    return attributes;
   }
 
+  if (attributes.length === undefined) {
+    return attributes;
+  }
+
+  let transformed_attributes: Record<string, any> = {};
+  for (let i = 0; i < attributes.length; i++) {
+    const attr = attributes[i];
+    if (attr && attr.name && attr.value !== undefined) {
+      transformed_attributes[attr.name] = attr.value;
+    }
+  }
   return transformed_attributes;
+}
+
+function transform_cells_NamedNodeMap_to_attributes(cell: any) {
+  // Transform NamedNodeMap attributes to standard object
+  if (cell.value.attributes && typeof cell.value.attributes === "object") {
+    const attributes = cell.value.attributes;
+    return transform_NamedNodeMap_to_record(attributes);
+  }
+
+  return {};
 }
 
 /**
@@ -628,7 +753,7 @@ export function transform_cell_for_display(
     if (typeof cell.value === "string") {
       transformed.value = cell.value;
     } else if (typeof cell.value === "object") {
-      const transformed_attributes = transform_NamedNodeMap_to_attributes(cell);
+      const transformed_attributes = transform_cells_NamedNodeMap_to_attributes(cell);
 
       transformed.value = {
         attributes: transformed_attributes,
@@ -747,7 +872,7 @@ export function list_paged_model(
 
     // Add value attributes if it's an object
     if (cell.value && typeof cell.value === "object" && cell.value.attributes) {
-      const transformed_attributes = transform_NamedNodeMap_to_attributes(cell);
+      const transformed_attributes = transform_cells_NamedNodeMap_to_attributes(cell);
 
       // const valueAttrs = cell.value.attributes;
       // if (Array.isArray(valueAttrs)) {

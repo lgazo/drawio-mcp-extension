@@ -62,5 +62,6 @@ export type MxGraphIsLayer = (cell: MxGraphCell) => boolean;
 declare global {
   interface Window {
     Draw?: Draw;
+    mxUtils?: any;
   }
 }
