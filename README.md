@@ -71,6 +71,30 @@ or
 pnpm run zip:firefox
 ```
 
+## Configuration
+
+### WebSocket Server Port
+
+By default, the extension connects to the Draw.io MCP Server on port `3333`. You can configure a different port through the extension options:
+
+1. Click on the extension icon to open the popup
+2. Click the **⚙️ Settings** button (or access extension settings through your browser's extension management page)
+3. Enter your desired port number (1024-65535)
+4. Click **Save Settings**
+
+The connection will automatically reconnect with the new configuration. The configured port is displayed in the popup for easy verification.
+
+**Note:** Make sure your Draw.io MCP Server is running on the same port you configure here. Restarting the browser will not reset the configuration - it persists across sessions.
+
+### Connection Status
+
+The extension icon indicates the current connection state:
+- 🟢 Green: Connected to the server
+- 🟠 Orange: Connecting/reconnecting
+- 🔴 Red: Disconnected
+
+You can also view the current configured port and connection status in the extension popup.
+
 ## Sponsoring
 
 If you enjoy the project or find it useful, consider supporting its continued development.

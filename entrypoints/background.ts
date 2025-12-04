@@ -1,3 +1,5 @@
+import { getWebSocketUrl, CONFIG_STORAGE_KEY } from '../config';
+
 export default defineBackground(() => {
   console.log("Hello background!", { id: browser.runtime.id });
 
@@ -46,39 +48,46 @@ export default defineBackground(() => {
   }
 
   // Function to establish WebSocket connection
-  function connect() {
+  async function connect() {
     setExtensionIcon("connecting");
-    socket = new WebSocket("ws://localhost:3333");
 
-    socket.addEventListener("open", (event) => {
-      console.debug("[background] WebSocket connection established", event);
-      reconnectAttempts = 0; // Reset reconnect counter on successful connection
-      setExtensionIcon("connected");
-      // Notify content scripts that connection is ready
-      broadcastToContentScripts({ type: "WS_STATUS", connected: true });
-    });
+    try {
+      const wsUrl = await getWebSocketUrl();
+      socket = new WebSocket(wsUrl);
 
-    socket.addEventListener("message", (event) => {
-      console.debug("[background] Message from server:", event.data);
-      const json = JSON.parse(event.data);
-      // Forward messages to all content scripts
-      broadcastToContentScripts({
-        type: "WS_MESSAGE",
-        data: json,
+      socket.addEventListener("open", (event) => {
+        console.debug("[background] WebSocket connection established", event);
+        reconnectAttempts = 0; // Reset reconnect counter on successful connection
+        setExtensionIcon("connected");
+        // Notify content scripts that connection is ready
+        broadcastToContentScripts({ type: "WS_STATUS", connected: true });
       });
-    });
 
-    socket.addEventListener("close", (event) => {
-      console.debug("[background] WebSocket connection closed", event);
-      setExtensionIcon("disconnected");
-      broadcastToContentScripts({ type: "WS_STATUS", connected: false });
-      attemptReconnect();
-    });
+      socket.addEventListener("message", (event) => {
+        console.debug("[background] Message from server:", event.data);
+        const json = JSON.parse(event.data);
+        // Forward messages to all content scripts
+        broadcastToContentScripts({
+          type: "WS_MESSAGE",
+          data: json,
+        });
+      });
 
-    socket.addEventListener("error", (event) => {
-      console.error("[background] WebSocket error:", event);
+      socket.addEventListener("close", (event) => {
+        console.debug("[background] WebSocket connection closed", event);
+        setExtensionIcon("disconnected");
+        broadcastToContentScripts({ type: "WS_STATUS", connected: false });
+        attemptReconnect();
+      });
+
+      socket.addEventListener("error", (event) => {
+        console.error("[background] WebSocket error:", event);
+        setExtensionIcon("disconnected");
+      });
+    } catch (error) {
+      console.error("[background] Failed to get WebSocket URL:", error);
       setExtensionIcon("disconnected");
-    });
+    }
   }
 
   // Reconnection logic with exponential backoff
@@ -166,6 +175,24 @@ export default defineBackground(() => {
     }
 
     return true; // Keep the message channel open for async response
+  });
+
+  // Listen for storage changes to auto-reconnect when config changes
+  browser.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === 'sync' || areaName === 'local') {
+      if (changes[CONFIG_STORAGE_KEY]) {
+        console.debug("[background] Configuration changed, reconnecting...");
+        // Close existing socket if it exists
+        if (socket) {
+          socket.close();
+          socket = null;
+        }
+        // Reset reconnect attempts to start fresh
+        reconnectAttempts = 0;
+        // Reconnect with new configuration
+        connect();
+      }
+    }
   });
 
   // Initial connection

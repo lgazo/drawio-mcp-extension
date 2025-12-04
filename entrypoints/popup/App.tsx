@@ -1,13 +1,20 @@
 import { useState, useEffect } from "react";
 import "./App.css";
+import { getConfig } from "../../config";
 
 type ConnectionState = "connected" | "connecting" | "disconnected";
 
 function App() {
   const [connectionState, setConnectionState] = useState<ConnectionState>("disconnected");
   const [featuresExpanded, setFeaturesExpanded] = useState(false);
+  const [currentPort, setCurrentPort] = useState<number>(3333);
 
   useEffect(() => {
+    // Load current configuration
+    getConfig().then(config => {
+      setCurrentPort(config.websocketPort);
+    }).catch(error => console.error("Error loading config:", error));
+
     // Request connection state from background script when popup opens
     browser.runtime.sendMessage({ type: "GET_CONNECTION_STATE" })
       .then((response) => {
@@ -43,13 +50,22 @@ function App() {
         </a>
       </div>
       <h1>Draw.io MCP</h1>
+      <div className="header-actions">
+        <button
+          onClick={() => browser.runtime.openOptionsPage()}
+          className="settings-button"
+          title="Open Settings"
+        >
+          ⚙️ Settings
+        </button>
+      </div>
       <div className="connection-status">
         <div className={`status-indicator ${connectionState}`}></div>
         <span>Status: {connectionState.charAt(0).toUpperCase() + connectionState.slice(1)}</span>
       </div>
       <div className="card">
         <p>
-          The WebSocket connection is currently <strong>{connectionState}</strong>.
+          The WebSocket connection is currently <strong>{connectionState}</strong> on port <strong>{currentPort}</strong>.
         </p>
         {connectionState !== "connected" && (
           <p>
