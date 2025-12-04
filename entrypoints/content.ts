@@ -8,8 +8,11 @@ function sendToWebSocket(data: any) {
   });
 }
 
+// Content script is now registered dynamically via background.ts
+// The matches are configured by users in the options page
 export default defineContentScript({
-  matches: ["*://app.diagrams.net/*"],
+  // Note: matches will be empty here since we're using dynamic registration
+  matches: [],
   async main() {
     console.log("Hello content " + Date.now(), { window, browser });
     await injectScript("/main_world.js", {

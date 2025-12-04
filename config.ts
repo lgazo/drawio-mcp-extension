@@ -1,11 +1,15 @@
 // Configuration interface
 export interface ExtensionConfig {
   websocketPort: number;
+  urlPatterns: string[];
 }
+
+import { safeMigrateConfig } from './utils/configMigration';
 
 // Default configuration
 export const DEFAULT_CONFIG: ExtensionConfig = {
   websocketPort: 3333,
+  urlPatterns: ["*://app.diagrams.net/*"],
 };
 
 // Storage key
@@ -14,7 +18,7 @@ export const CONFIG_STORAGE_KEY = 'drawio-mcp-config';
 // Configuration service functions
 
 /**
- * Load configuration from storage or return defaults
+ * Load configuration from storage, apply migration, or return defaults
  */
 export async function getConfig(): Promise<ExtensionConfig> {
   try {
@@ -24,13 +28,11 @@ export async function getConfig(): Promise<ExtensionConfig> {
     if (result && result[CONFIG_STORAGE_KEY]) {
       const storedConfig = result[CONFIG_STORAGE_KEY];
 
-      // Validate stored config
-      if (storedConfig &&
-          typeof storedConfig.websocketPort === 'number' &&
-          storedConfig.websocketPort >= 1024 &&
-          storedConfig.websocketPort <= 65535) {
-        return storedConfig;
-      }
+      // Migrate config (adds urlPatterns if missing)
+      const migratedConfig = safeMigrateConfig(storedConfig);
+
+      // Return migrated config
+      return migratedConfig;
     }
   } catch (error) {
     console.warn('[config] Failed to load config from storage:', error);

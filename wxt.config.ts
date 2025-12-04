@@ -5,7 +5,8 @@ export default defineConfig({
   modules: ["@wxt-dev/module-react"],
   manifest: {
     name: "Draw.io MCP Extension",
-    permissions: ["storage"],
+    permissions: ["storage", "scripting"],
+    host_permissions: ["<all_urls>"],
     options_ui: {
       page: "options.html",
       open_in_tab: true,
@@ -13,8 +14,7 @@ export default defineConfig({
     web_accessible_resources: [
       {
         resources: ["main_world.js"],
-        // matches: ["*://*/*"],
-        matches: ["*://app.diagrams.net/*"],
+        matches: ["<all_urls>"],
       },
     ],
   },

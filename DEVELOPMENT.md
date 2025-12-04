@@ -17,6 +17,11 @@ export default defineWebExtConfig({
 
 chrome-extension://kaojkbhgfapmlcpdfiacogniedjfbifg/popup.html
 
+## Testing
+
+Alternative page to https://app.diagrams.net to test different URL pattern match is: https://jgraph.github.io/drawio/src/main/webapp/index.html
+
+
 # Publishing
 
 Badge inspiration from https://github.com/timbru31/amazon-tag-remover

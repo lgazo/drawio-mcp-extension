@@ -1,3 +1,4 @@
+import { initializeContentScripts, updateContentScriptRegistration } from '@/contentScript';
 import { getWebSocketUrl, CONFIG_STORAGE_KEY } from '../config';
 
 export default defineBackground(() => {
@@ -177,26 +178,30 @@ export default defineBackground(() => {
     return true; // Keep the message channel open for async response
   });
 
-  // Listen for storage changes to auto-reconnect when config changes
-  browser.storage.onChanged.addListener((changes, areaName) => {
+  // Listen for storage changes to auto-reconnect and update content scripts when config changes
+  browser.storage.onChanged.addListener(async (changes, areaName) => {
     if (areaName === 'sync' || areaName === 'local') {
       if (changes[CONFIG_STORAGE_KEY]) {
-        console.debug("[background] Configuration changed, reconnecting...");
-        // Close existing socket if it exists
-        if (socket) {
-          socket.close();
-          socket = null;
+        console.debug("[background] Configuration changed, updating WebSocket and content scripts...");
+
+        // Update content script registration first
+        try {
+          const newConfig = changes[CONFIG_STORAGE_KEY].newValue;
+          if (newConfig && newConfig.urlPatterns) {
+            await updateContentScriptRegistration(newConfig);
+          }
+        } catch (error) {
+          connect();
         }
-        // Reset reconnect attempts to start fresh
-        reconnectAttempts = 0;
-        // Reconnect with new configuration
-        connect();
       }
     }
   });
 
   // Initial connection
   connect();
+
+  // Initialize content scripts
+  initializeContentScripts();
 
   // Optional: Keepalive ping
   const keepAliveInterval = setInterval(() => {
