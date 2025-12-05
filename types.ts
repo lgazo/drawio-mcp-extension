@@ -2,9 +2,6 @@
   EXTENSION
 */
 
-export const bus_request_stream = "BUS_REQUEST";
-export const bus_reply_stream = "BUS_REPLY";
-
 export type OptionKey = string;
 
 export type BusListener<RQ> = (request: RQ) => void;
@@ -48,6 +45,8 @@ export interface DrawioEditor {
 // UI interface for the loadPlugin callback parameter
 export interface DrawioUI {
   editor: DrawioEditor;
+  menus?: any; // Draw.io menu bar - may not always be available
+  actions?: any;
   // Add other UI properties as needed
 }
 

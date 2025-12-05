@@ -11,140 +11,340 @@ import {
   get_shape_categories,
   get_shapes_in_category,
   list_paged_model,
+  remove_circular_dependencies,
 } from "@/drawio";
-import { on_standard_tool_request_from_server } from "../bus";
 import { DrawioUI } from "../types";
 
+// Import plugin modules
+import { readPluginConfig, writePluginConfig, buildWebSocketUrl } from "../utils/plugin/pluginConfig";
+import { createWebSocketManager, type WebSocketManager } from "../utils/plugin/websocketManager";
+import { createSettingsDialog, showSettingsDialog, hideSettingsDialog, type SettingsDialogState, type SettingsDialogActions } from "../utils/plugin/settingsDialog";
+import { reply_name } from "@/events";
+
+/**
+ * Functional tool handler factory
+ * Creates handlers that match server requests with tool execution
+ */
+const createToolHandler = (
+  toolName: string,
+  parameterKeys: Set<string>,
+  executeFunction: (ui: DrawioUI, options: Record<string, unknown>) => unknown
+) => {
+  return (request: any): any => {
+    const optionEntries = Object.entries(request).filter(([key, _value]) => {
+      return parameterKeys.has(key);
+    });
+
+    const options = optionEntries.reduce((acc, [key, value]) => {
+      acc[key] = value;
+      return acc;
+    }, {} as Record<string, unknown>);
+
+    let reply;
+    try {
+      const result = executeFunction(ui, options);
+      reply = {
+        __event: reply_name(toolName, request.__request_id),
+        __request_id: request.__request_id,
+        success: true,
+        result: remove_circular_dependencies(result),
+      };
+    } catch (error) {
+      console.error(`[plugin] Tool ${toolName} failed for request ID ${request.__request_id}:`, error);
+      reply = {
+        __event: reply_name(toolName, request.__request_id),
+        __request_id: request.__request_id,
+        success: false,
+        error: remove_circular_dependencies(error),
+      };
+    }
+
+    // Send reply directly via WebSocket
+    if (wsManager) {
+      wsManager.send(reply);
+    }
+
+    return reply;
+  };
+};
+
+let ui: DrawioUI;
+let wsManager: WebSocketManager | null = null;
+let settingsDialog: { element: HTMLElement; update: (state: SettingsDialogState) => void } | null = null;
+
+// Tool registrations (pure function definitions for consistency)
+const toolDefinitions = [
+  {
+    name: "get-selected-cell",
+    params: new Set<string>([]),
+    handler: (ui: DrawioUI, _options: Record<string, unknown>) => {
+      return ui.editor.graph.getSelectionCell() || "no cell selected";
+    }
+  },
+  {
+    name: "add-rectangle",
+    params: new Set(["x", "y", "width", "height", "text", "style"]),
+    handler: add_new_rectangle
+  },
+  {
+    name: "delete-cell-by-id",
+    params: new Set(["cell_id"]),
+    handler: delete_cell_by_id
+  },
+  {
+    name: "add-edge",
+    params: new Set(["source_id", "target_id", "style", "text"]),
+    handler: add_edge
+  },
+  {
+    name: "get-shape-categories",
+    params: new Set([]),
+    handler: get_shape_categories
+  },
+  {
+    name: "get-shapes-in-category",
+    params: new Set(["category_id"]),
+    handler: get_shapes_in_category
+  },
+  {
+    name: "get-shape-by-name",
+    params: new Set(["shape_name"]),
+    handler: get_shape_by_name
+  },
+  {
+    name: "add-cell-of-shape",
+    params: new Set(["x", "y", "width", "height", "text", "style"]),
+    handler: add_cell_of_shape
+  },
+  {
+    name: "set-cell-shape",
+    params: new Set(["cell_id", "shape_name"]),
+    handler: set_cell_shape
+  },
+  {
+    name: "set-cell-data",
+    params: new Set(["cell_id", "key", "value"]),
+    handler: (ui: DrawioUI, options: Record<string, unknown>) => {
+      const mxUtils = window.mxUtils;
+      return set_cell_data(mxUtils)(ui, options);
+    }
+  },
+  {
+    name: "list-paged-model",
+    params: new Set(["page", "page_size", "filter"]),
+    handler: list_paged_model
+  },
+  {
+    name: "edit-cell",
+    params: new Set(["cell_id", "text", "x", "y", "width", "height", "style"]),
+    handler: edit_cell
+  },
+  {
+    name: "edit-edge",
+    params: new Set(["cell_id", "text", "source_id", "target_id", "style"]),
+    handler: edit_edge
+  }
+];
+
+// Tool handlers map (will be populated on plugin load)
+const toolHandlers = new Map<string, (request: any) => any>();
+
+/**
+ * Message handler for WebSocket messages from MCP server
+ * Routes tool requests to appropriate handlers
+ */
+const handleWebSocketMessage = (message: any): void => {
+  console.debug("[plugin] Received WebSocket message:", message);
+
+  // Check if this is a tool request
+  if (message.__event && toolHandlers.has(message.__event)) {
+    const handler = toolHandlers.get(message.__event);
+    if (handler) {
+      handler(message);
+    }
+  }
+};
+
+/**
+ * Initialize WebSocket connection
+ */
+const initializeWebSocket = (): void => {
+  const config = readPluginConfig();
+  const wsUrl = buildWebSocketUrl(config);
+
+  wsManager = createWebSocketManager({
+    url: wsUrl,
+    maxReconnectAttempts: 5,
+    reconnectDelay: 3000,
+    pingInterval: 30000,
+  });
+
+  wsManager.onMessage(handleWebSocketMessage);
+  wsManager.connect();
+
+  console.log(`[plugin] WebSocket initialized with URL: ${wsUrl}`);
+};
+
+/**
+ * Initialize settings dialog
+ */
+const initializeSettingsDialog = (): void => {
+  const config = readPluginConfig();
+  const connectionState = wsManager ? wsManager.getState() : "disconnected";
+
+  const initialState: SettingsDialogState = {
+    config: { ...config },
+    connectionState,
+    isSaving: false,
+    formData: {
+      port: config.websocketPort.toString(),
+    },
+    errors: {},
+  };
+
+  const actions: SettingsDialogActions = {
+    onSave: (newConfig) => {
+      writePluginConfig(newConfig);
+
+      // Reinitialize WebSocket with new config
+      if (wsManager) {
+        wsManager.disconnect();
+      }
+      initializeWebSocket();
+
+      // Update dialog state
+      if (settingsDialog) {
+        settingsDialog.update({
+          ...initialState,
+          config: { ...newConfig },
+          connectionState: wsManager ? wsManager.getState() : "disconnected",
+          isSaving: false,
+        });
+      }
+
+      console.log("[plugin] Configuration saved and WebSocket reinitialized");
+    },
+
+    onClose: () => {
+      if (settingsDialog) {
+        hideSettingsDialog(settingsDialog);
+      }
+    },
+
+    onPing: async () => {
+      if (wsManager) {
+        return await wsManager.ping();
+      }
+      return false;
+    },
+
+    onReconnect: () => {
+      if (wsManager) {
+        wsManager.disconnect();
+        wsManager.connect();
+      }
+    },
+  };
+
+  settingsDialog = createSettingsDialog(initialState, actions);
+};
+
+/**
+ * Show settings dialog
+ */
+const showSettings = (): void => {
+  if (!settingsDialog) {
+    initializeSettingsDialog();
+  }
+
+  if (settingsDialog) {
+    // Update connection state before showing
+    const config = readPluginConfig();
+    const connectionState = wsManager ? wsManager.getState() : "disconnected";
+
+    settingsDialog.update({
+      config: { ...config },
+      connectionState,
+      isSaving: false,
+      formData: {
+        port: config.websocketPort.toString(),
+      },
+      errors: {},
+    });
+
+    showSettingsDialog(settingsDialog);
+  }
+};
+
+/**
+ * Add MCP Settings menu item to Draw.io menu
+ */
+const addMenuItem = (ui: DrawioUI): void => {
+  // Check if menubar is available
+  if (!ui.menus) {
+    console.warn("[plugin] Menu bar not available, cannot add MCP Settings menu item");
+    return;
+  }
+
+  const menubar = ui.menus;
+
+  try {
+    // Try to find the extras menu first
+    let targetMenu = menubar.get("extras") ||
+      menubar.get("file") ||
+      menubar.get("edit");
+
+    if (!targetMenu) {
+      console.warn("[plugin] Could not find suitable menu to add MCP Settings");
+      return;
+    }
+
+    // Adds action
+    ui.actions.addAction('Draw.io MCP', function () {
+      showSettings();
+    });
+
+    var oldFunct = targetMenu.funct;
+
+    targetMenu.funct = function (targetMenu: any, parent: any) {
+      oldFunct.apply(this, arguments);
+
+      ui.menus.addMenuItems(targetMenu, ['Draw.io MCP'], parent);
+    };
+
+  } catch (error) {
+    console.error("[plugin] Failed to add menu item:", error);
+  }
+};
+
 export default defineUnlistedScript(() => {
-  console.log("Hello from the main world");
+  console.debug("[plugin] Loading Draw.io MCP Plugin...");
+
   const checkInterval = setInterval(() => {
     if (window.Draw) {
       clearInterval(checkInterval);
-      window.Draw.loadPlugin((ui: DrawioUI) => {
-        console.log("plugin loaded", ui);
-        const { editor } = ui;
-        const { graph } = editor;
-        const mxUtils = window.mxUtils;
 
-        //TODO: just for testing / exploring Draw.io
-        // window.ui = ui;
-        // window.editor = editor;
-        // window.graph = graph;
+      window.Draw.loadPlugin((drawioUI: DrawioUI) => {
+        console.debug("[plugin] Plugin loaded successfully");
+        ui = drawioUI;
 
-        const TOOL_get_selected_cell = "get-selected-cell";
-        on_standard_tool_request_from_server(
-          TOOL_get_selected_cell,
-          ui,
-          new Set([]),
-          (ui, _options) => {
-            const result = graph.getSelectionCell() || "no cell selected";
-            return result;
-          },
-        );
+        // Initialize tool handlers
+        toolDefinitions.forEach(def => {
+          const handler = createToolHandler(def.name, def.params, def.handler);
+          toolHandlers.set(def.name, handler);
+        });
 
-        const TOOL_add_rectangle = "add-rectangle";
-        on_standard_tool_request_from_server(
-          TOOL_add_rectangle,
-          ui,
-          new Set(["x", "y", "width", "height", "text", "style"]),
-          add_new_rectangle,
-        );
+        // Initialize WebSocket
+        initializeWebSocket();
 
-        const TOOL_delete_cell_by_id = "delete-cell-by-id";
-        on_standard_tool_request_from_server(
-          TOOL_delete_cell_by_id,
-          ui,
-          new Set(["cell_id"]),
-          delete_cell_by_id,
-        );
+        // Initialize settings dialog
+        initializeSettingsDialog();
 
-        const TOOL_add_edge = "add-edge";
-        on_standard_tool_request_from_server(
-          TOOL_add_edge,
-          ui,
-          new Set(["source_id", "target_id", "style", "text"]),
-          add_edge,
-        );
+        // Add menu item
+        addMenuItem(ui);
 
-        const TOOL_get_shape_categories = "get-shape-categories";
-        on_standard_tool_request_from_server(
-          TOOL_get_shape_categories,
-          ui,
-          new Set([]),
-          get_shape_categories,
-        );
-
-        const TOOL_get_shapes_in_category = "get-shapes-in-category";
-        on_standard_tool_request_from_server(
-          TOOL_get_shapes_in_category,
-          ui,
-          new Set(["category_id"]),
-          get_shapes_in_category,
-        );
-
-        const TOOL_get_shape_by_name = "get-shape-by-name";
-        on_standard_tool_request_from_server(
-          TOOL_get_shape_by_name,
-          ui,
-          new Set(["shape_name"]),
-          get_shape_by_name,
-        );
-
-        const TOOL_add_cell_of_shape = "add-cell-of-shape";
-        on_standard_tool_request_from_server(
-          TOOL_add_cell_of_shape,
-          ui,
-          new Set(["x", "y", "width", "height", "text", "style"]),
-          add_cell_of_shape,
-        );
-
-        const TOOL_set_cell_shape = "set-cell-shape";
-        on_standard_tool_request_from_server(
-          TOOL_set_cell_shape,
-          ui,
-          new Set(["cell_id", "shape_name"]),
-          set_cell_shape,
-        );
-
-        const TOOL_set_cell_data = "set-cell-data";
-        on_standard_tool_request_from_server(
-          TOOL_set_cell_data,
-          ui,
-          new Set(["cell_id", "key", "value"]),
-          set_cell_data(mxUtils),
-        );
-
-        const TOOL_list_paged_model = "list-paged-model";
-        on_standard_tool_request_from_server(
-          TOOL_list_paged_model,
-          ui,
-          new Set(["page", "page_size", "filter"]),
-          list_paged_model,
-        );
-
-        const TOOL_edit_cell = "edit-cell";
-        on_standard_tool_request_from_server(
-          TOOL_edit_cell,
-          ui,
-          new Set(["cell_id", "text", "x", "y", "width", "height", "style"]),
-          edit_cell,
-        );
-
-        const TOOL_edit_edge = "edit-edge";
-        on_standard_tool_request_from_server(
-          TOOL_edit_edge,
-          ui,
-          new Set(["cell_id", "text", "source_id", "target_id", "style"]),
-          edit_edge,
-        );
+        console.info("[plugin] MCP Plugin fully initialized");
       });
-    } else {
-      const el = document.querySelector(
-        "body > div.geMenubarContainer > div.geMenubar > div > button",
-      );
-      if (el) {
-        el.innerHTML = Date.now().toString();
-      }
     }
   }, 1000);
 });

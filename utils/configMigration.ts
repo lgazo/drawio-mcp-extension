@@ -5,28 +5,32 @@ import type { ExtensionConfig } from '../config'
 
 /**
  * Pure migration function from old config to new config format
- * Migration adds urlPatterns if missing (backward compatibility)
+ * Migration removes websocketPort (moved to plugin localStorage) and ensures urlPatterns exist
  */
 export const migrateConfig = (oldConfig: any): ExtensionConfig => {
   if (!oldConfig || typeof oldConfig !== 'object') {
     // Return default config if old config is invalid
     return {
-      websocketPort: 3333,
       urlPatterns: ['*://app.diagrams.net/*']
     }
   }
 
-  // Check if migration needed (urlPatterns exist)
-  if (oldConfig.urlPatterns && Array.isArray(oldConfig.urlPatterns)) {
-    return oldConfig as ExtensionConfig
+  // Start with clean slate
+  const migrated: ExtensionConfig = {
+    urlPatterns: ['*://app.diagrams.net/*'] // default
   }
 
-  // Perform migration: add default urlPatterns
-  console.info('[config-migration] Migrating config: adding default urlPatterns')
-  return {
-    ...oldConfig,
-    urlPatterns: ['*://app.diagrams.net/*']
+  // Preserve urlPatterns if they exist and are valid
+  if (oldConfig.urlPatterns && Array.isArray(oldConfig.urlPatterns)) {
+    migrated.urlPatterns = oldConfig.urlPatterns
   }
+
+  // Log migration if websocketPort was removed
+  if (oldConfig.websocketPort !== undefined) {
+    console.info('[config-migration] Migrating config: removed websocketPort (moved to plugin localStorage), preserving urlPatterns')
+  }
+
+  return migrated
 }
 
 /**
@@ -34,9 +38,6 @@ export const migrateConfig = (oldConfig: any): ExtensionConfig => {
  */
 export const validateMigratedConfig = (config: ExtensionConfig): boolean => {
   return (
-    typeof config.websocketPort === 'number' &&
-    config.websocketPort >= 1024 &&
-    config.websocketPort <= 65535 &&
     Array.isArray(config.urlPatterns) &&
     config.urlPatterns.length > 0 &&
     config.urlPatterns.every(pattern => typeof pattern === 'string')

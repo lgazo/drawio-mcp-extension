@@ -1,24 +1,21 @@
-// Configuration interface
+// Extension Configuration interface (minimal - only URL patterns for content script injection)
 export interface ExtensionConfig {
-  websocketPort: number;
   urlPatterns: string[];
 }
 
 import { safeMigrateConfig } from './utils/configMigration';
 
-// Default configuration
+// Default configuration (only URL patterns now)
 export const DEFAULT_CONFIG: ExtensionConfig = {
-  websocketPort: 3333,
   urlPatterns: ["*://app.diagrams.net/*"],
 };
 
 // Storage key
 export const CONFIG_STORAGE_KEY = 'drawio-mcp-config';
 
-// Configuration service functions
-
 /**
- * Load configuration from storage, apply migration, or return defaults
+ * Load extension configuration from storage, apply migration, or return defaults
+ * Note: WebSocket port configuration moved to plugin (localStorage)
  */
 export async function getConfig(): Promise<ExtensionConfig> {
   try {
@@ -28,7 +25,7 @@ export async function getConfig(): Promise<ExtensionConfig> {
     if (result && result[CONFIG_STORAGE_KEY]) {
       const storedConfig = result[CONFIG_STORAGE_KEY];
 
-      // Migrate config (adds urlPatterns if missing)
+      // Migrate config (removes websocketPort, keeps urlPatterns)
       const migratedConfig = safeMigrateConfig(storedConfig);
 
       // Return migrated config
@@ -43,7 +40,7 @@ export async function getConfig(): Promise<ExtensionConfig> {
 }
 
 /**
- * Save configuration to storage
+ * Save extension configuration to storage
  */
 export async function saveConfig(config: ExtensionConfig): Promise<void> {
   try {
@@ -58,15 +55,7 @@ export async function saveConfig(config: ExtensionConfig): Promise<void> {
 }
 
 /**
- * Build WebSocket URL from stored config
- */
-export async function getWebSocketUrl(): Promise<string> {
-  const config = await getConfig();
-  return `ws://localhost:${config.websocketPort}`;
-}
-
-/**
- * Reset configuration to defaults
+ * Reset extension configuration to defaults
  */
 export async function resetConfigToDefaults(): Promise<void> {
   await saveConfig({ ...DEFAULT_CONFIG });

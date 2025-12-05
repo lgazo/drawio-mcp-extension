@@ -3,11 +3,10 @@ import { getConfig, saveConfig, resetConfigToDefaults, type ExtensionConfig } fr
 import { validateMV3Pattern, isValidPatternList, deduplicatePatterns, patternsAreEquivalent } from "../../utils/urlPatternValidator";
 
 function Options() {
-  const [config, setConfig] = useState<ExtensionConfig>({ websocketPort: 3333, urlPatterns: ["*://app.diagrams.net/*"] });
+  const [config, setConfig] = useState<ExtensionConfig>({ urlPatterns: ["*://app.diagrams.net/*"] });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
-  const [portInput, setPortInput] = useState('');
   const [patterns, setPatterns] = useState<string[]>([]);
   const [newPatternInput, setNewPatternInput] = useState('');
   const [patternsError, setPatternsError] = useState<string>('');
@@ -21,7 +20,6 @@ function Options() {
     try {
       const currentConfig = await getConfig();
       setConfig(currentConfig);
-      setPortInput(currentConfig.websocketPort.toString());
       setPatterns(currentConfig.urlPatterns);
     } catch (error) {
       console.error('Failed to load config:', error);
@@ -31,24 +29,7 @@ function Options() {
     }
   };
 
-  const validatePort = (port: string): { isValid: boolean; error?: string } => {
-    const portNum = parseInt(port, 10);
-    if (isNaN(portNum)) {
-      return { isValid: false, error: 'Port must be a number' };
-    }
-    if (portNum < 1024 || portNum > 65535) {
-      return { isValid: false, error: 'Port must be between 1024 and 65535' };
-    }
-    return { isValid: true };
-  };
-
   const handleSave = async () => {
-    const validation = validatePort(portInput);
-    if (!validation.isValid) {
-      setMessage({ type: 'error', text: validation.error || 'Invalid port' });
-      return;
-    }
-
     // Validate patterns
     if (!isValidPatternList(patterns)) {
       setMessage({ type: 'error', text: 'Invalid URL patterns detected. Please fix errors and try again.' });
@@ -59,13 +40,12 @@ function Options() {
     try {
       const uniquePatterns = deduplicatePatterns(patterns);
       const newConfig: ExtensionConfig = {
-        websocketPort: parseInt(portInput, 10),
         urlPatterns: uniquePatterns
       };
       await saveConfig(newConfig);
       setConfig(newConfig);
       setPatterns(uniquePatterns);
-      setMessage({ type: 'success', text: 'Settings saved successfully! Extension will reload content scripts for new URLs.' });
+      setMessage({ type: 'success', text: 'Extension settings saved successfully! Content scripts will be re-registered for new URLs.' });
     } catch (error) {
       console.error('Failed to save config:', error);
       setMessage({ type: 'error', text: 'Failed to save settings' });
@@ -80,9 +60,8 @@ function Options() {
       await resetConfigToDefaults();
       const defaultConfig = await getConfig(); // Reload from defaults
       setConfig(defaultConfig);
-      setPortInput(defaultConfig.websocketPort.toString());
       setPatterns(defaultConfig.urlPatterns);
-      setMessage({ type: 'success', text: 'Settings reset to defaults! Connection will reconnect automatically.' });
+      setMessage({ type: 'success', text: 'Extension settings reset to defaults! Content scripts will be re-registered.' });
     } catch (error) {
       console.error('Failed to reset config:', error);
       setMessage({ type: 'error', text: 'Failed to reset settings' });
@@ -136,13 +115,6 @@ function Options() {
       ...validateMV3Pattern(pattern)
     })), [patterns]);
 
-  const handleInputChange = (value: string) => {
-    setPortInput(value);
-    if (message) {
-      setMessage(null);
-    }
-  };
-
   if (loading) {
     return (
       <div className="options-container">
@@ -164,37 +136,13 @@ function Options() {
 
       <div className="card main-settings-card">
         <form onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
-          {/* WebSocket Server Configuration */}
-          <div className="settings-section">
-            <h3>WebSocket Server Configuration</h3>
-
-            <div className="form-group">
-              <label htmlFor="port-input">Port Number:</label>
-              <input
-                id="port-input"
-                type="number"
-                value={portInput}
-                onChange={(e) => handleInputChange(e.target.value)}
-                min={1024}
-                max={65535}
-                className="port-input"
-                disabled={saving}
-                placeholder="3333"
-                required
-              />
-              <span className="input-hint">(1024-65535)</span>
-            </div>
-          </div>
-
-          {/* URL Pattern Separator */}
-          <div className="section-separator"></div>
-
           {/* URL Patterns for Content Script Injection */}
           <div className="settings-section">
             <h3>URL Patterns for Content Script Injection</h3>
             <p className="card-description">
               Configure URL patterns where the Draw.io MCP Extension should inject its content scripts.
-              These follow Chrome's MV3 match pattern format.
+              These follow Chrome's MV3 match pattern format. The MCP plugin itself will be configured
+              within Draw.io once injected.
             </p>
 
             <div className="pattern-input-section">

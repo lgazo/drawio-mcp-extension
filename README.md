@@ -73,27 +73,54 @@ pnpm run zip:firefox
 
 ## Configuration
 
-### WebSocket Server Port
+### Extension Setup (URL Patterns)
 
-By default, the extension connects to the Draw.io MCP Server on port `3333`. You can configure a different port through the extension options:
+First, configure which websites the extension should inject the MCP plugin onto:
 
 1. Click on the extension icon to open the popup
-2. Click the **⚙️ Settings** button (or access extension settings through your browser's extension management page)
-3. Enter your desired port number (1024-65535)
-4. Click **Save Settings**
+2. Click **⚙️ Extension Settings** (or access through your browser's extension management page)
+3. Add URL patterns for Draw.io instances (default: `*://app.diagrams.net/*`)
+4. Click **Save All Settings**
 
-The connection will automatically reconnect with the new configuration. The configured port is displayed in the popup for easy verification.
+This determines where the MCP plugin will be loaded. The extension popup shows how many URL patterns are configured.
 
-**Note:** Make sure your Draw.io MCP Server is running on the same port you configure here. Restarting the browser will not reset the configuration - it persists across sessions.
+### MCP Plugin Configuration (WebSocket Settings)
+
+Once the extension is configured to inject on your Draw.io instance:
+
+1. Open any Draw.io website that matches your URL patterns
+2. Look for **"Draw.io MCP"** in the Draw.io **Extras** menu (top menu bar)
+3. Configure the WebSocket port (default: 3333)
+4. Click **Save** to apply changes
+
+The plugin will automatically connect/reconnect with your new settings. Configuration persists per website (localStorage-based).
+
+**Note:** Make sure your Draw.io MCP Server is running on the configured port. Settings are managed within Draw.io itself, not in the extension popup.
 
 ### Connection Status
 
-The extension icon indicates the current connection state:
+Connection status is now displayed in the MCP Settings dialog within Draw.io:
 - 🟢 Green: Connected to the server
 - 🟠 Orange: Connecting/reconnecting
 - 🔴 Red: Disconnected
 
-You can also view the current configured port and connection status in the extension popup.
+You can test connections and manually reconnect through the settings dialog.
+
+### Migration from v1.4.x to v1.5.0+
+
+**WebSocket Configuration Moved to Plugin:**
+
+After updating to v1.5.0+, WebSocket port configuration is now managed within Draw.io itself:
+
+1. **Previous behavior**: WebSocket port configured in extension popup/settings
+2. **New behavior**: WebSocket port configured in Draw.io via "MCP Settings..." menu
+3. **Configuration persistence**: Moved from browser.storage to localStorage (per-website)
+
+After the update:
+- Extension popup no longer shows connection status or port configuration
+- Open Draw.io and use "MCP Settings..." from the menu to reconfigure
+- Default port remains 3333 if previously configured
+- Extension settings now only control URL injection patterns
 
 ## Sponsoring
 

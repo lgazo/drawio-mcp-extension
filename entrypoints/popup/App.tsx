@@ -2,45 +2,19 @@ import { useState, useEffect } from "react";
 import "./App.css";
 import { getConfig } from "../../config";
 
-type ConnectionState = "connected" | "connecting" | "disconnected";
-
 function App() {
-  const [connectionState, setConnectionState] = useState<ConnectionState>("disconnected");
   const [featuresExpanded, setFeaturesExpanded] = useState(false);
-  const [currentPort, setCurrentPort] = useState<number>(3333);
+  const [urlPatterns, setUrlPatterns] = useState<string[]>([]);
 
   useEffect(() => {
-    // Load current configuration
+    // Load current configuration to show URL patterns
     getConfig().then(config => {
-      setCurrentPort(config.websocketPort);
+      setUrlPatterns(config.urlPatterns);
     }).catch(error => console.error("Error loading config:", error));
-
-    // Request connection state from background script when popup opens
-    browser.runtime.sendMessage({ type: "GET_CONNECTION_STATE" })
-      .then((response) => {
-        if (response && response.state) {
-          setConnectionState(response.state);
-        }
-      })
-      .catch(error => console.error("Error getting connection state:", error));
-
-    // Listen for connection state updates
-    const listener = (message: any) => {
-      if (message.type === "CONNECTION_STATE_UPDATE") {
-        setConnectionState(message.state);
-      }
-      return true;
-    };
-
-    browser.runtime.onMessage.addListener(listener);
-
-    return () => {
-      browser.runtime.onMessage.removeListener(listener);
-    };
   }, []);
 
-  // Get the appropriate logo based on connection state
-  const logoSrc = `/icon/logo_${connectionState}_128.png`;
+  // Use default logo since we don't have connection state anymore
+  const logoSrc = `/icon/logo_128.png`;
 
   return (
     <>
@@ -56,60 +30,39 @@ function App() {
           className="settings-button"
           title="Open Settings"
         >
-          ⚙️ Settings
+          ⚙️ Extension Settings
         </button>
-      </div>
-      <div className="connection-status">
-        <div className={`status-indicator ${connectionState}`}></div>
-        <span>Status: {connectionState.charAt(0).toUpperCase() + connectionState.slice(1)}</span>
-      </div>
-      <div className="card">
-        <p>
-          The WebSocket connection is currently <strong>{connectionState}</strong> on port <strong>{currentPort}</strong>.
-        </p>
-        {connectionState !== "connected" && (
-          <p>
-            {connectionState === "connecting"
-              ? "Attempting to connect to the MCP server..."
-              : "Not connected to the MCP server. The server may be offline."}
-          </p>
-        )}
       </div>
 
       <div className="card">
-        <div className="button-container">
-          <button
-            onClick={() => {
-              browser.runtime.sendMessage({ type: "SEND_PING_TO_SERVER" })
-                .catch(error => console.error("Error sending ping:", error));
-            }}
-            disabled={connectionState !== "connected"}
-            className="ping-button"
-          >
-            Ping Server
-          </button>
-          
-          {connectionState === "disconnected" && (
-            <button
-              onClick={() => {
-                browser.runtime.sendMessage({ type: "RECONNECT_TO_SERVER" })
-                  .catch(error => console.error("Error reconnecting:", error));
-              }}
-              className="connect-button"
-            >
-              Connect
-            </button>
-          )}
-        </div>
+        <h3>🚀 Getting Started</h3>
+        <ol>
+          <li>Open any <strong>Draw.io</strong> website that matches your configured URL patterns</li>
+          <li>Look for <strong>"Draw.io MCP"</strong> in the Draw.io Extras menu to configure the plugin</li>
+          <li>Start using MCP tools to create and modify diagrams</li>
+        </ol>
       </div>
-      
+
       <div className="card">
-        <p>Please open <a href="https://app.diagrams.net/" target="_blank">Draw.io</a> website to use MCP features</p>
+        <p><strong>Extension Status:</strong></p>
+        <ul>
+          <li>Content scripts will be injected on: <strong>{urlPatterns.length} URL pattern{urlPatterns.length !== 1 ? 's' : ''}</strong></li>
+          {urlPatterns.length > 0 && (
+            <li>Active patterns: {urlPatterns.slice(0, 2).join(', ')}{urlPatterns.length > 2 ? ` and ${urlPatterns.length - 2} more` : ''}</li>
+          )}
+        </ul>
+      </div>
+
+      <div className="card">
+        <p>
+          <strong>⚠️ Note:</strong> WebSocket configuration and connection status are now managed
+          within the Draw.io plugin itself, not in this extension popup.
+        </p>
       </div>
 
       <div className="card align-left features-section">
-        <h3 
-          className="features-heading" 
+        <h3
+          className="features-heading"
           onClick={() => setFeaturesExpanded(!featuresExpanded)}
         >
           Supported Features: <span className={`expand-icon ${featuresExpanded ? 'expanded' : ''}`}>▶</span>
@@ -122,8 +75,19 @@ function App() {
             <li>Delete cell</li>
             <li>Get shape categories</li>
             <li>Add specific shape</li>
+            <li>Set cell shape and data</li>
+            <li>List paged model</li>
+            <li>Edit cells and edges</li>
           </ul>
         )}
+      </div>
+
+      <div className="card">
+        <p>
+          <small>
+            Learn more at <a href="https://github.com/lgazo/drawio-mcp-extension" target="_blank">GitHub</a>
+          </small>
+        </p>
       </div>
     </>
   );
