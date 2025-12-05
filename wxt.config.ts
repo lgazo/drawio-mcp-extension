@@ -5,7 +5,7 @@ export default defineConfig({
   modules: ["@wxt-dev/module-react"],
   manifest: {
     name: "Draw.io MCP Extension",
-    permissions: ["storage", "scripting"],
+    permissions: ["storage", "scripting", "declarativeNetRequest"],
     host_permissions: ["<all_urls>"],
     options_ui: {
       page: "options.html",
