@@ -505,11 +505,11 @@ export function createSettingsDialog(
 
       switch (message.type) {
         case "UPDATE_PORT":
-          // Update form data
+          // Update form data WITHOUT re-rendering
           currentState.formData.port = message.port;
           // Clear port error
           delete currentState.errors.port;
-          update(currentState);
+          // Don't call update() to avoid re-rendering the dialog
           break;
 
         case "SAVE":
