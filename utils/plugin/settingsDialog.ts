@@ -331,21 +331,6 @@ function createDialogFooter(state: SettingsDialogState, actions: SettingsDialogA
     flex-wrap: wrap;
   `;
 
-  const pingBtn = createButton("Ping", "secondary", () => {
-    window.dispatchEvent(new CustomEvent("mcp-settings-message", {
-      detail: { type: "PING" }
-    }));
-  });
-
-  const reconnectBtn = createButton("Reconnect", "secondary", () => {
-    window.dispatchEvent(new CustomEvent("mcp-settings-message", {
-      detail: { type: "RECONNECT" }
-    }));
-  });
-
-  leftActions.appendChild(pingBtn);
-  leftActions.appendChild(reconnectBtn);
-
   // Right side actions
   const rightActions = document.createElement("div");
   rightActions.style.cssText = `
