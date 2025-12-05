@@ -29,8 +29,6 @@ export type SettingsMessage =
   | { type: "UPDATE_CONNECTION_STATE"; state: "connecting" | "connected" | "disconnected" }
   | { type: "UPDATE_PORT"; port: string }
   | { type: "SAVE" }
-  | { type: "PING" }
-  | { type: "RECONNECT" }
   | { type: "RESET" };
 
 // Dialog actions
@@ -194,6 +192,7 @@ function createStatusSection(state: SettingsDialogState): HTMLElement {
     display: flex;
     align-items: center;
     gap: 8px;
+    margin-bottom: 4px;
   `;
 
   const indicator = document.createElement("div");
@@ -224,8 +223,16 @@ function createStatusSection(state: SettingsDialogState): HTMLElement {
   statusIndicator.appendChild(indicator);
   statusIndicator.appendChild(statusText);
 
+  const portDisplay = document.createElement("div");
+  portDisplay.style.cssText = `
+    font-size: 14px;
+    color: #666;
+  `;
+  portDisplay.textContent = `Port: ${state.config.websocketPort}`;
+
   section.appendChild(title);
   section.appendChild(statusIndicator);
+  section.appendChild(portDisplay);
 
   return section;
 }
@@ -510,11 +517,6 @@ export function createSettingsDialog(
           if (!validateAndSave()) {
             update(currentState);
           }
-          break;
-
-        case "PING":
-        case "RECONNECT":
-          // These are handled by the parent via actions
           break;
 
         case "CLOSE":
