@@ -1,4 +1,5 @@
 import { WxtBrowser } from "wxt/browser";
+import { getConfig } from "../../config";
 
 type DeclarativeRule = NonNullable<
     Parameters<typeof browser.declarativeNetRequest.updateDynamicRules>[0]["addRules"]
@@ -6,7 +7,7 @@ type DeclarativeRule = NonNullable<
 
 const DRAWIO_CSP_RULE_ID = 1001;
 const WS_RULE_VALUES = "ws://localhost:* wss://localhost:*";
-const WS_CSP_RULE_ID = 1002;
+const WS_CSP_RULE_ID_BASE = 1002; // Base ID for dynamic rules
 const WS_CSP_HEADER_VALUE = [
     "default-src 'self'",
     "script-src https://www.dropbox.com https://api.trello.com 'self' https://viewer.diagrams.net https://apis.google.com https://*.pusher.com 'sha256-f6cHSTUnCvbQqwa6rKcbWIpgN9dLl0ROfpEKTQUQPr8=' 'sha256-vS/MxlVD7nbY7AnV+0t1Ap338uF7vrcs7y23KjERhKc='",
@@ -35,80 +36,122 @@ const DRAWIO_CSP_RULE: DeclarativeRule = {
 };
 
 
-const WS_CSP_RULE: DeclarativeRule = {
-    id: WS_CSP_RULE_ID,
-    priority: 2,
-    action: {
-        type: "modifyHeaders" as const,
-        responseHeaders: [
-            {
-                header: "Content-Security-Policy",
-                operation: "remove" as const,
-            },
-            {
-                header: "content-security-policy",
-                operation: "set" as const,
-                value: WS_CSP_HEADER_VALUE,
-            },
-        ],
-    },
-    condition: {
-        urlFilter: "https://app.diagrams.net/*",
-        resourceTypes: ["main_frame", "sub_frame"] as const,
-    },
-};
+/**
+ * Generate a CSP rule for a specific URL pattern
+ */
+function createWsCspRule(urlPattern: string, ruleId: number): DeclarativeRule {
+    return {
+        id: ruleId,
+        priority: 2,
+        action: {
+            type: "modifyHeaders" as const,
+            responseHeaders: [
+                {
+                    header: "Content-Security-Policy",
+                    operation: "remove" as const,
+                },
+                {
+                    header: "content-security-policy",
+                    operation: "set" as const,
+                    value: WS_CSP_HEADER_VALUE,
+                },
+            ],
+        },
+        condition: {
+            urlFilter: urlPattern,
+            resourceTypes: ["main_frame", "sub_frame"] as const,
+        },
+    };
+}
+
+/**
+ * Convert URL pattern to urlFilter format
+ * Handles patterns like "*://app.diagrams.net/*" -> "https://app.diagrams.net/*" and "http://app.diagrams.net/*"
+ */
+function patternToUrlFilter(pattern: string): string[] {
+    // If pattern starts with *://, we need to create rules for both http and https
+    if (pattern.startsWith("*://")) {
+        const rest = pattern.slice(4); // Remove "*://"
+        return [`https://${rest}`, `http://${rest}`];
+    }
+    return [pattern];
+}
 
 let wsCspRuleApplied = false;
+let appliedRuleIds: number[] = [];
 
 async function enableWsCspRule() {
     if (wsCspRuleApplied) return;
+    
+    // Load config to get URL patterns
+    const config = await getConfig();
+    const urlPatterns = config.urlPatterns || ["*://app.diagrams.net/*"];
+    
+    // Create rules for each pattern
+    const rulesToAdd: DeclarativeRule[] = [DRAWIO_CSP_RULE];
+    appliedRuleIds = [DRAWIO_CSP_RULE_ID];
+    
+    let currentRuleId = WS_CSP_RULE_ID_BASE;
+    for (const pattern of urlPatterns) {
+        const urlFilters = patternToUrlFilter(pattern);
+        for (const urlFilter of urlFilters) {
+            const rule = createWsCspRule(urlFilter, currentRuleId);
+            rulesToAdd.push(rule);
+            appliedRuleIds.push(currentRuleId);
+            currentRuleId++;
+        }
+    }
+    
     await browser.declarativeNetRequest.updateDynamicRules({
-        removeRuleIds: [DRAWIO_CSP_RULE_ID],
-        addRules: [DRAWIO_CSP_RULE],
+        removeRuleIds: appliedRuleIds,
+        addRules: rulesToAdd,
     });
-    await browser.declarativeNetRequest.updateDynamicRules({
-        removeRuleIds: [WS_CSP_RULE_ID],
-        addRules: [WS_CSP_RULE],
-    });
-    console.debug(`enabled ws csp`, WS_CSP_RULE);
+    
+    console.debug(`enabled ws csp rules for patterns:`, urlPatterns, rulesToAdd);
     wsCspRuleApplied = true;
 }
 
 async function disableWsCspRule() {
     if (!wsCspRuleApplied) return;
     await browser.declarativeNetRequest.updateDynamicRules({
-        removeRuleIds: [DRAWIO_CSP_RULE_ID],
+        removeRuleIds: appliedRuleIds,
         addRules: [],
     });
-    await browser.declarativeNetRequest.updateDynamicRules({
-        removeRuleIds: [WS_CSP_RULE_ID],
-        addRules: [],
-    });
+    appliedRuleIds = [];
     wsCspRuleApplied = false;
 }
 
 const wsRuleConsumers = new Set<number>();
 
-browser.tabs
-    .query({ url: "https://app.diagrams.net/*" })
-    .then((tabs) => {
-        tabs.forEach((tab) => {
-            if (typeof tab.id === "number") {
-                registerWsRuleConsumer(tab.id).catch((error) => {
-                    console.error(
-                        "[background] Failed to register CSP rule for existing tab",
-                        error,
-                    );
-                });
+// Bootstrap: Register CSP rules for existing tabs matching configured patterns
+(async () => {
+    try {
+        const config = await getConfig();
+        const urlPatterns = config.urlPatterns || ["*://app.diagrams.net/*"];
+        
+        // Query tabs for each pattern
+        for (const pattern of urlPatterns) {
+            const tabs = await browser.tabs.query({ url: pattern });
+            for (const tab of tabs) {
+                if (typeof tab.id === "number") {
+                    try {
+                        await registerWsRuleConsumer(tab.id);
+                    } catch (error) {
+                        console.error(
+                            "[background] Failed to register CSP rule for existing tab",
+                            error,
+                        );
+                    }
+                }
             }
-        });
-    })
-    .catch((error) => {
+        }
+    } catch (error) {
         console.error(
             "[background] Failed to bootstrap CSP rule registration",
             error,
         );
-    });
+    }
+})();
 
 
 async function registerWsRuleConsumer(tabId?: number) {
@@ -161,8 +204,23 @@ export function register_csp(browser: WxtBrowser) {
 
     browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
         const url = changeInfo.url ?? tab.url;
-        if (url && url.startsWith("https://app.diagrams.net/")) {
-            console.debug(`[tabs.onUpdated] registering WebSocket CSP`);
+        if (!url) return;
+        
+        // Check if URL matches any configured pattern
+        const config = await getConfig();
+        const urlPatterns = config.urlPatterns || ["*://app.diagrams.net/*"];
+        
+        const matchesPattern = urlPatterns.some(pattern => {
+            // Convert pattern to regex for matching
+            const regexPattern = pattern
+                .replace(/\*/g, ".*")
+                .replace(/\?/g, ".");
+            const regex = new RegExp(`^${regexPattern}$`);
+            return regex.test(url);
+        });
+        
+        if (matchesPattern) {
+            console.debug(`[tabs.onUpdated] registering WebSocket CSP for pattern-matched URL: ${url}`);
             try {
                 await registerWsRuleConsumer(tabId);
             } catch (error) {
@@ -171,31 +229,18 @@ export function register_csp(browser: WxtBrowser) {
                     error,
                 );
             }
-
-            // const dynamic = await browser.declarativeNetRequest.getDynamicRules();
-            // console.log(`dynamic`, dynamic);
-
-            // const rulesets = await browser.declarativeNetRequest.getEnabledRulesets();
-            // console.log(`ruleset`, rulesets);
-            // browser.declarativeNetRequest.testMatchOutcome({
-            //   url: 'https://app.diagrams.net',
-            //   method: 'get',
-            //   type: 'main_frame',
-            //   tabId,  // Use -1 for hypothetical requests
-            // }, (result) => {
-            //   console.log('Test outcome:', result);
-            // });
             return;
         }
 
-        if (!wsRuleConsumers.has(tabId)) return;
-        if (!url) return;
-        unregisterWsRuleConsumer(tabId).catch((error) => {
-            console.error(
-                "[background] Failed to unregister CSP rule consumer on tab update",
-                error,
-            );
-        });
+        // URL doesn't match any pattern, unregister if previously registered
+        if (wsRuleConsumers.has(tabId)) {
+            unregisterWsRuleConsumer(tabId).catch((error) => {
+                console.error(
+                    "[background] Failed to unregister CSP rule consumer on tab update",
+                    error,
+                );
+            });
+        }
     });
 
 }
