@@ -460,13 +460,15 @@ export function createSettingsDialog(
 ): { element: HTMLElement; update: (state: SettingsDialogState) => void } {
   let currentState = { ...initialState };
   let dialogElement: HTMLElement | null = null;
+  let isVisible = false;
 
   /**
    * Update dialog state and refresh UI
    */
   const update = (newState: SettingsDialogState): void => {
     currentState = { ...newState };
-    if (dialogElement) {
+    // Only re-render if the dialog is currently visible
+    if (dialogElement && isVisible) {
       render();
     }
   };
@@ -494,6 +496,7 @@ export function createSettingsDialog(
     container.appendChild(content);
 
     dialogElement = container;
+    isVisible = true;
 
     // Set up message listeners
     setupMessageListeners(container, actions);
@@ -583,17 +586,28 @@ export function createSettingsDialog(
     return true;
   };
 
-  return {
-    element: render(),
+  // Create a proxy object that always returns the current dialog element
+  const dialogProxy = {
+    get element(): HTMLElement {
+      if (!dialogElement) {
+        render();
+      }
+      return dialogElement!;
+    },
     update,
   };
+
+  return dialogProxy;
 }
 
 /**
  * Show the dialog
  */
 export function showSettingsDialog(dialog: { element: HTMLElement }): void {
-  document.body.appendChild(dialog.element);
+  // The dialog.element getter will ensure we get the current rendered element
+  if (!dialog.element.parentNode) {
+    document.body.appendChild(dialog.element);
+  }
 }
 
 /**
