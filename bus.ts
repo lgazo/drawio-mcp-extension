@@ -21,7 +21,19 @@ export const on_request_from_server: OnRequestFromServer = (
   console.debug(`[bus] registered ${event_name}`);
   const listener = (emitter_data: any) => {
     // console.debug(`[bus] received from server, expecting ${event_name}`, emitter_data);
-    const event = emitter_data.detail;
+    // Content script now passes data as JSON string to avoid Firefox Xray vision blocking
+    // Parse the JSON string to get the actual event object
+    let event: any;
+    try {
+      if (typeof emitter_data.detail !== 'string') {
+        console.error(`[bus] Expected event detail to be a string, but got:`, emitter_data.detail);
+        return;
+      }
+      event = JSON.parse(emitter_data.detail);
+    } catch (e: any) {
+      console.error(`[bus] Failed to parse event data:`, e);
+      return;
+    }
     if (event.__event === event_name) {
       console.debug(
         `[bus] received from server, matched ${event_name}`,
@@ -36,6 +48,7 @@ export const on_request_from_server: OnRequestFromServer = (
 export const on_standard_tool_request_from_server: OnStandardToolRequestFromServer =
   (event_name, ui, accepted_option_keys, drawio_function) => {
     return on_request_from_server(event_name, (request: any) => {
+      const requestId = request.__request_id;
       const option_entries = Object.entries(request).filter(([key, _value]) => {
         return accepted_option_keys.has(key);
       });
@@ -49,19 +62,19 @@ export const on_standard_tool_request_from_server: OnStandardToolRequestFromServ
       try {
         const result = drawio_function(ui, options);
         reply = {
-          __event: reply_name(event_name, request.__request_id),
-          __request_id: request.__request_id,
+          __event: reply_name(event_name, requestId),
+          __request_id: requestId,
           success: true,
           result: remove_circular_dependencies(result),
         };
       } catch (e) {
         console.error(
-          `[bus] failed executing standard tool ${event_name} with request ID = ${request.__request_id}. Returning success=false to the server.`,
+          `[bus] failed executing standard tool ${event_name} with request ID = ${requestId}. Returning success=false to the server.`,
           e,
         );
         reply = {
-          __event: reply_name(event_name, request.__request_id),
-          __request_id: request.__request_id,
+          __event: reply_name(event_name, requestId),
+          __request_id: requestId,
           success: false,
           error: remove_circular_dependencies(e),
         };

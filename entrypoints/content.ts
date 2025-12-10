@@ -10,14 +10,29 @@ function sendToWebSocket(data: any) {
 
 // Content script is now registered dynamically via background.ts
 // The matches are configured by users in the options page
+// Note: Firefox requires at least one match pattern in manifest, so we provide a default
+// The dynamic registration will override this with user-configured patterns
 export default defineContentScript({
-  // Note: matches will be empty here since we're using dynamic registration
-  matches: [],
+  matches: ["*://app.diagrams.net/*"],
   async main() {
     console.log("Hello content " + Date.now(), { window, browser });
-    await injectScript("/main_world.js", {
-      keepInDom: true,
-    });
+    
+    // Inject script as external file to avoid CSP violations
+    // Create script tag with src pointing to web-accessible resource
+    // This loads as external file, satisfying CSP requirements
+    const scriptUrl = browser.runtime.getURL("/main_world.js");
+    
+    // Check if script is already injected to avoid duplicates
+    const existingScript = document.querySelector(`script[src="${scriptUrl}"]`);
+    if (!existingScript) {
+      const script = document.createElement("script");
+      script.src = scriptUrl;
+      script.type = "module";
+      // Remove the script element after it loads to avoid memory leaks
+      script.onload = () => script.remove();
+      // Inject into main world by appending to page's document
+      (document.head || document.documentElement).appendChild(script);
+    }
 
     // Listen for messages from background
     browser.runtime.onMessage.addListener((message) => {
@@ -26,8 +41,12 @@ export default defineContentScript({
           "[content] Received from background from WebSocket:",
           message.data,
         );
+        // Serialize to JSON string to avoid Firefox Xray vision blocking property access
+        // When CustomEvent.detail crosses context boundaries, Firefox wraps it with Xray
+        // By passing a JSON string, we avoid any property access on Xray-wrapped objects
+        const jsonData = JSON.stringify(message.data);
         window.dispatchEvent(
-          new CustomEvent(bus_request_stream, { detail: message.data }),
+          new CustomEvent(bus_request_stream, { detail: jsonData }),
         );
       } else if (message.type === "WS_STATUS") {
         console.log(
@@ -46,7 +65,9 @@ export default defineContentScript({
           message,
         );
       }
-      sendToWebSocket(reply);
+      // Serialize and deserialize the reply to ensure it is JSON-safe and avoid Xray issues
+      const clonedReply = JSON.parse(JSON.stringify(reply));
+      sendToWebSocket(clonedReply);
     });
   },
 });
