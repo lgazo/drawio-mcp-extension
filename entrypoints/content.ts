@@ -20,7 +20,7 @@ export default defineContentScript({
     // Inject script as external file to avoid CSP violations
     // Create script tag with src pointing to web-accessible resource
     // This loads as external file, satisfying CSP requirements
-    const scriptUrl = browser.runtime.getURL("main_world.js");
+    const scriptUrl = browser.runtime.getURL("/main_world.js");
     
     // Check if script is already injected to avoid duplicates
     const existingScript = document.querySelector(`script[src="${scriptUrl}"]`);
