@@ -25,10 +25,11 @@ export const on_request_from_server: OnRequestFromServer = (
     // Parse the JSON string to get the actual event object
     let event: any;
     try {
-      const jsonString = typeof emitter_data.detail === 'string' 
-        ? emitter_data.detail 
-        : JSON.stringify(emitter_data.detail); // Fallback for non-string (shouldn't happen)
-      event = JSON.parse(jsonString);
+      if (typeof emitter_data.detail !== 'string') {
+        console.error(`[bus] Expected event detail to be a string, but got:`, emitter_data.detail);
+        return;
+      }
+      event = JSON.parse(emitter_data.detail);
     } catch (e: any) {
       console.error(`[bus] Failed to parse event data:`, e);
       return;

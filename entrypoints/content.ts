@@ -28,6 +28,8 @@ export default defineContentScript({
       const script = document.createElement("script");
       script.src = scriptUrl;
       script.type = "module";
+      // Remove the script element after it loads to avoid memory leaks
+      script.onload = () => script.remove();
       // Inject into main world by appending to page's document
       (document.head || document.documentElement).appendChild(script);
     }
@@ -63,8 +65,8 @@ export default defineContentScript({
           message,
         );
       }
-      // Clone the reply to ensure it can be serialized properly
-      const clonedReply = structuredClone(reply);
+      // Serialize and deserialize the reply to ensure it is JSON-safe and avoid Xray issues
+      const clonedReply = JSON.parse(JSON.stringify(reply));
       sendToWebSocket(clonedReply);
     });
   },
