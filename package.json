@@ -28,6 +28,9 @@
   "author": "Ladislav Gazo",
   "license": "MIT",
   "packageManager": "pnpm@10.8.1",
+  "engines": {
+    "node": ">=23.0.0"
+  },
   "dependencies": {
     "react": "19.1.0",
     "react-dom": "19.1.0"
