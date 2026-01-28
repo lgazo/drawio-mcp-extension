@@ -11,6 +11,11 @@ import {
   get_shape_categories,
   get_shapes_in_category,
   list_paged_model,
+  list_layers,
+  set_active_layer,
+  move_cell_to_layer,
+  get_active_layer,
+  create_layer,
 } from "@/drawio";
 import { on_standard_tool_request_from_server } from "../bus";
 import { DrawioUI } from "../types";
@@ -136,6 +141,47 @@ export default defineUnlistedScript(() => {
           ui,
           new Set(["cell_id", "text", "source_id", "target_id", "style"]),
           edit_edge,
+        );
+
+        // Layer Management Tools
+        const TOOL_list_layers = "list-layers";
+        on_standard_tool_request_from_server(
+          TOOL_list_layers,
+          ui,
+          new Set([]),
+          list_layers,
+        );
+
+        const TOOL_set_active_layer = "set-active-layer";
+        on_standard_tool_request_from_server(
+          TOOL_set_active_layer,
+          ui,
+          new Set(["layer_id"]),
+          set_active_layer,
+        );
+
+        const TOOL_move_cell_to_layer = "move-cell-to-layer";
+        on_standard_tool_request_from_server(
+          TOOL_move_cell_to_layer,
+          ui,
+          new Set(["cell_id", "target_layer_id"]),
+          move_cell_to_layer,
+        );
+
+        const TOOL_get_active_layer = "get-active-layer";
+        on_standard_tool_request_from_server(
+          TOOL_get_active_layer,
+          ui,
+          new Set([]),
+          get_active_layer,
+        );
+
+        const TOOL_create_layer = "create-layer";
+        on_standard_tool_request_from_server(
+          TOOL_create_layer,
+          ui,
+          new Set(["name"]),
+          create_layer,
         );
       });
     } else {
