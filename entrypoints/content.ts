@@ -12,6 +12,7 @@ function sendToWebSocket(data: any) {
 // The matches are configured by users in the options page
 export default defineContentScript({
   // Note: matches will be empty here since we're using dynamic registration
+  registration: 'runtime',
   matches: [],
   async main() {
     console.log("Hello content " + Date.now(), { window, browser });
