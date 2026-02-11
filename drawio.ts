@@ -829,6 +829,9 @@ export function list_paged_model(
     page_size?: number;
     filter?: {
       cell_type?: "edge" | "node" | "object" | "layer";
+      parent_ids?: string[];
+      layer_ids?: string[];
+      ids?: string[];
       attributes?: any[];
     };
   } = {},
@@ -955,6 +958,13 @@ export function list_paged_model(
   let filtered_cells = Object.values(cells);
 
   if (options.filter) {
+    // Merge layer_ids into parent_ids for filtering
+    const filter = options.filter;
+    const allParentIds = [
+      ...(filter.parent_ids || []),
+      ...(filter.layer_ids || []),
+    ];
+
     filtered_cells = filtered_cells.filter((cell) => {
       // Check cell type filter
       if (
@@ -974,6 +984,21 @@ export function list_paged_model(
         if (
           !evaluate_filter_expression(options.filter.attributes, cellAttributes)
         ) {
+          return false;
+        }
+      }
+
+      // Check parent_ids / layer_ids filter
+      if (allParentIds.length > 0) {
+        const parent = cell.parent;
+        if (!parent || !parent.id || !allParentIds.includes(parent.id)) {
+          return false;
+        }
+      }
+
+      // Check ids filter
+      if (filter.ids && filter.ids.length > 0) {
+        if (!filter.ids.includes(cell.id)) {
           return false;
         }
       }

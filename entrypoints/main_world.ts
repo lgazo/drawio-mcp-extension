@@ -123,7 +123,7 @@ export default defineUnlistedScript(() => {
         on_standard_tool_request_from_server(
           TOOL_list_paged_model,
           ui,
-          new Set(["page", "page_size", "filter"]),
+          new Set(["page", "page_size", "filter", "filter.parent_ids", "filter.layer_ids", "filter.ids"]),
           list_paged_model,
         );
 
