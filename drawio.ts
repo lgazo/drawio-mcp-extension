@@ -829,6 +829,9 @@ export function list_paged_model(
     page_size?: number;
     filter?: {
       cell_type?: "edge" | "node" | "object" | "layer";
+      parent_ids?: string[];
+      layer_ids?: string[];
+      ids?: string[];
       attributes?: any[];
     };
   } = {},
@@ -955,6 +958,13 @@ export function list_paged_model(
   let filtered_cells = Object.values(cells);
 
   if (options.filter) {
+    // Merge layer_ids into parent_ids for filtering
+    const filter = options.filter;
+    const allParentIds = [
+      ...(filter.parent_ids || []),
+      ...(filter.layer_ids || []),
+    ];
+
     filtered_cells = filtered_cells.filter((cell) => {
       // Check cell type filter
       if (
@@ -974,6 +984,21 @@ export function list_paged_model(
         if (
           !evaluate_filter_expression(options.filter.attributes, cellAttributes)
         ) {
+          return false;
+        }
+      }
+
+      // Check parent_ids / layer_ids filter
+      if (allParentIds.length > 0) {
+        const parent = cell.parent;
+        if (!parent || !parent.id || !allParentIds.includes(parent.id)) {
+          return false;
+        }
+      }
+
+      // Check ids filter
+      if (filter.ids && filter.ids.length > 0) {
+        if (!filter.ids.includes(cell.id)) {
           return false;
         }
       }
@@ -1031,4 +1056,139 @@ export function get_cell_tags(graph: any, cell: any): string[] {
     console.warn("Could not get tags for cell:", error);
     return [];
   }
+}
+
+// Layer Management Functions
+
+/**
+ * Lists all layers in the diagram
+ * @param ui The draw.io UI instance
+ * @returns Array of layer objects with id, name, visible, and locked properties
+ */
+export function list_layers(ui: any) {
+  const { editor } = ui;
+  const { graph } = editor;
+  const model = graph.getModel();
+  const root = model.getRoot();
+  const layers = [];
+  
+  for (let i = 0; i < model.getChildCount(root); i++) {
+    const layer = model.getChildAt(root, i);
+    if (layer) {
+      layers.push({
+        id: layer.getId(),
+        name: layer.getValue() || `Layer ${i}`,
+        visible: layer.isVisible(),
+        locked: !layer.isConnectable()
+      });
+    }
+  }
+  
+  return layers;
+}
+
+/**
+ * Sets the active layer for new element creation
+ * @param ui The draw.io UI instance
+ * @param options Contains layer_id
+ * @returns Information about the newly active layer
+ */
+export function set_active_layer(ui: any, options: DrawioCellOptions) {
+  const { editor } = ui;
+  const { graph } = editor;
+  const model = graph.getModel();
+  const layer = model.getCell(options.layer_id);
+  
+  if (!layer) {
+    throw new Error(`Layer with ID ${options.layer_id} not found`);
+  }
+  
+  // Set the default parent (active layer)
+  graph.setDefaultParent(layer);
+  
+  return {
+    id: layer.getId(),
+    name: layer.getValue() || 'Unnamed Layer'
+  };
+}
+
+/**
+ * Moves a cell to a different layer
+ * @param ui The draw.io UI instance
+ * @param options Contains cell_id and target_layer_id
+ * @returns Confirmation of the move operation
+ */
+export function move_cell_to_layer(ui: any, options: DrawioCellOptions) {
+  const { editor } = ui;
+  const { graph } = editor;
+  const model = graph.getModel();
+  
+  const cell = model.getCell(options.cell_id);
+  const targetLayer = model.getCell(options.target_layer_id);
+  
+  if (!cell) {
+    throw new Error(`Cell with ID ${options.cell_id} not found`);
+  }
+  
+  if (!targetLayer) {
+    throw new Error(`Target layer with ID ${options.target_layer_id} not found`);
+  }
+  
+  model.beginUpdate();
+  try {
+    // Move the cell to the target layer
+    model.add(targetLayer, cell);
+  } finally {
+    model.endUpdate();
+  }
+  
+  return {
+    moved_cell: options.cell_id,
+    to_layer: options.target_layer_id
+  };
+}
+
+/**
+ * Gets the currently active layer
+ * @param ui The draw.io UI instance
+ * @returns Information about the current active layer
+ */
+export function get_active_layer(ui: any) {
+  const { editor } = ui;
+  const { graph } = editor;
+  const activeLayer = graph.getDefaultParent();
+  
+  return {
+    id: activeLayer.getId(),
+    name: activeLayer.getValue() || 'Default Layer'
+  };
+}
+
+/**
+ * Creates a new layer in the diagram
+ * @param ui The draw.io UI instance
+ * @param options Contains name for the new layer
+ * @returns Information about the newly created layer
+ */
+export function create_layer(ui: any, options: DrawioCellOptions) {
+  const { editor } = ui;
+  const { graph } = editor;
+  const model = graph.getModel();
+  const root = model.getRoot();
+  
+  model.beginUpdate();
+  let newLayer;
+  try {
+    // Create new layer
+    newLayer = new (window as any).mxCell(options.name);
+    newLayer.setId(null); // Let Draw.io assign an ID
+    model.add(root, newLayer);
+  } finally {
+    model.endUpdate();
+  }
+  
+  return {
+    id: newLayer.getId(),
+    name: options.name
+  };
 }

@@ -12,6 +12,11 @@ import {
   get_shapes_in_category,
   list_paged_model,
   remove_circular_dependencies,
+  list_layers,
+  set_active_layer,
+  move_cell_to_layer,
+  get_active_layer,
+  create_layer,
 } from "@/drawio";
 import { DrawioUI } from "../types";
 
@@ -143,6 +148,31 @@ const toolDefinitions = [
     name: "edit-edge",
     params: new Set(["cell_id", "text", "source_id", "target_id", "style"]),
     handler: edit_edge
+  },
+  {
+    name: "list-layers",
+    params: new Set([]),
+    handler: list_layers
+  },
+  {
+    name: "set-active-layer",
+    params: new Set(["layer_id"]),
+    handler: set_active_layer
+  },
+  {
+    name: "move-cell-to-layer",
+    params: new Set(["cell_id", "target_layer_id"]),
+    handler: move_cell_to_layer
+  },
+  {
+    name: "get-active-layer",
+    params: new Set([]),
+    handler: get_active_layer
+  },
+  {
+    name: "create-layer",
+    params: new Set(["name"]),
+    handler: create_layer
   }
 ];
 

@@ -1,6 +1,7 @@
 export default defineContentScript({
   // Note: matches will be empty here since we're using dynamic registration
-  matches: ['*://*/*'],
+  registration: 'runtime',
+  matches: [],
   async main() {
     console.debug("[content] injecting plugin");
 
